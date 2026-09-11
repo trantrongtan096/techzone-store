@@ -15,7 +15,8 @@ export class OrderService {
     return this.http.post<Order>(`${this.apiUrl}/checkout`, request);
   }
 
-  getOrderByCode(orderCode: string): Observable<Order> {
-    return this.http.get<Order>(`${this.apiUrl}/${orderCode}`);
+  getOrderByCode(orderCode: string, contact?: string): Observable<Order> {
+    const options = contact ? { params: { contact } } : {};
+    return this.http.get<Order>(`${this.apiUrl}/${orderCode}`, options);
   }
 }

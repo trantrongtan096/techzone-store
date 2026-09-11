@@ -15,9 +15,13 @@ export class CartService {
 
   constructor(private http: HttpClient) {
     let savedSession = localStorage.getItem('techzone_session_id');
-    if (!savedSession) {
-      savedSession = 'session_' + Math.random().toString(36).substring(2, 9);
+    const savedAt = Number(localStorage.getItem('techzone_session_created_at') || '0');
+    const isExpired = !savedAt || Date.now() - savedAt > 24 * 60 * 60 * 1000;
+
+    if (!savedSession || isExpired) {
+      savedSession = crypto.randomUUID();
       localStorage.setItem('techzone_session_id', savedSession);
+      localStorage.setItem('techzone_session_created_at', Date.now().toString());
     }
     this.sessionId = savedSession;
     this.loadCart();
@@ -43,14 +47,16 @@ export class CartService {
 
   updateQuantity(itemId: number, quantity: number): Observable<Cart> {
     return this.http.put<Cart>(`${this.apiUrl}/items/${itemId}`, null, {
-      params: { quantity: quantity.toString() }
+      params: { quantity: quantity.toString(), sessionId: this.sessionId }
     }).pipe(
       tap(updatedCart => this.updateCartState(updatedCart))
     );
   }
 
   removeItem(itemId: number): Observable<Cart> {
-    return this.http.delete<Cart>(`${this.apiUrl}/items/${itemId}`).pipe(
+    return this.http.delete<Cart>(`${this.apiUrl}/items/${itemId}`, {
+      params: { sessionId: this.sessionId }
+    }).pipe(
       tap(updatedCart => this.updateCartState(updatedCart))
     );
   }

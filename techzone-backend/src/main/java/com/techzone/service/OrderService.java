@@ -1,9 +1,17 @@
 package com.techzone.service;
 
 import com.techzone.dto.CheckoutRequest;
-import com.techzone.entity.*;
-import com.techzone.repository.*;
+import com.techzone.entity.Cart;
+import com.techzone.entity.CartItem;
+import com.techzone.entity.Order;
+import com.techzone.entity.OrderItem;
+import com.techzone.entity.Product;
+import com.techzone.entity.User;
+import com.techzone.repository.CartRepository;
+import com.techzone.repository.OrderRepository;
+import com.techzone.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +33,9 @@ public class OrderService {
         Cart cart = cartService.getOrCreateCart(user, request.getSessionId());
 
         if (cart.getItems().isEmpty()) {
-            throw new RuntimeException("Giỏ hàng của bạn đang trống!");
+            throw new RuntimeException("Cart is empty");
         }
 
-        // Atomic Stock Deduction for each cart item during checkout (Overselling Prevention)
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
             int quantity = cartItem.getQuantity();
@@ -37,15 +44,16 @@ public class OrderService {
                 int updated = productRepository.deductStockAtomic(product.getId(), quantity);
                 if (updated == 0) {
                     int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-                    throw new RuntimeException("Sản phẩm [" + product.getName() + "] không đủ tồn kho (chỉ còn " + currentStock + " sản phẩm)!");
+                    throw new RuntimeException("Product [" + product.getName() + "] does not have enough stock. Current stock: " + currentStock);
                 }
             }
         }
 
         BigDecimal totalAmount = cart.getItems().stream()
                 .map(item -> {
-                    BigDecimal price = item.getProduct().getPromotionPrice() != null ?
-                            item.getProduct().getPromotionPrice() : item.getProduct().getOriginalPrice();
+                    BigDecimal price = item.getProduct().getPromotionPrice() != null
+                            ? item.getProduct().getPromotionPrice()
+                            : item.getProduct().getOriginalPrice();
                     return price.multiply(BigDecimal.valueOf(item.getQuantity()));
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -67,8 +75,9 @@ public class OrderService {
                 .build();
 
         List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
-            BigDecimal price = cartItem.getProduct().getPromotionPrice() != null ?
-                    cartItem.getProduct().getPromotionPrice() : cartItem.getProduct().getOriginalPrice();
+            BigDecimal price = cartItem.getProduct().getPromotionPrice() != null
+                    ? cartItem.getProduct().getPromotionPrice()
+                    : cartItem.getProduct().getOriginalPrice();
 
             return OrderItem.builder()
                     .order(order)
@@ -82,7 +91,6 @@ public class OrderService {
         order.getItems().addAll(orderItems);
         Order savedOrder = orderRepository.save(order);
 
-        // Clear cart after checkout
         cart.getItems().clear();
         cartRepository.save(cart);
 
@@ -92,25 +100,22 @@ public class OrderService {
     @Transactional
     public Order updateOrderStatus(Long orderId, String newOrderStatus, String newPaymentStatus) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng id: " + orderId));
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
         String oldStatus = order.getOrderStatus();
 
-        // 1. Order Cancelled: Auto restore stock back to products
         if (!"CANCELLED".equalsIgnoreCase(oldStatus) && "CANCELLED".equalsIgnoreCase(newOrderStatus)) {
             for (OrderItem item : order.getItems()) {
                 if (item.getProduct() != null) {
                     productRepository.restoreStockAtomic(item.getProduct().getId(), item.getQuantity());
                 }
             }
-        }
-        // 2. Un-cancelling an Order: Re-deduct stock atomically
-        else if ("CANCELLED".equalsIgnoreCase(oldStatus) && !"CANCELLED".equalsIgnoreCase(newOrderStatus)) {
+        } else if ("CANCELLED".equalsIgnoreCase(oldStatus) && !"CANCELLED".equalsIgnoreCase(newOrderStatus)) {
             for (OrderItem item : order.getItems()) {
                 if (item.getProduct() != null) {
                     int updated = productRepository.deductStockAtomic(item.getProduct().getId(), item.getQuantity());
                     if (updated == 0) {
-                        throw new RuntimeException("Không thể mở lại đơn hàng vì sản phẩm [" + item.getProductName() + "] không đủ tồn kho!");
+                        throw new RuntimeException("Cannot reopen order because product [" + item.getProductName() + "] does not have enough stock");
                     }
                 }
             }
@@ -124,8 +129,25 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public Order getOrderByCode(String orderCode) {
-        return orderRepository.findByOrderCode(orderCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + orderCode));
+    public Order getOrderByCode(String orderCode, User user, String contact) {
+        Order order = orderRepository.findByOrderCode(orderCode)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + orderCode));
+
+        if (user != null && order.getUser() != null && order.getUser().getId().equals(user.getId())) {
+            return order;
+        }
+
+        if (contact != null && !contact.isBlank()) {
+            String normalizedContact = contact.trim();
+            boolean matchesEmail = order.getCustomerEmail() != null
+                    && order.getCustomerEmail().equalsIgnoreCase(normalizedContact);
+            boolean matchesPhone = order.getCustomerPhone() != null
+                    && order.getCustomerPhone().equals(normalizedContact);
+            if (matchesEmail || matchesPhone) {
+                return order;
+            }
+        }
+
+        throw new AccessDeniedException("Order verification is required");
     }
 }

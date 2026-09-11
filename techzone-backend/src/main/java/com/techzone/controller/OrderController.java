@@ -27,7 +27,10 @@ public class OrderController {
     }
 
     @GetMapping("/{orderCode}")
-    public ResponseEntity<Order> getOrderByCode(@PathVariable String orderCode) {
-        return ResponseEntity.ok(orderService.getOrderByCode(orderCode));
+    public ResponseEntity<Order> getOrderByCode(@PathVariable String orderCode,
+                                                @RequestParam(required = false) String contact,
+                                                Principal principal) {
+        User user = principal != null ? authService.getCurrentUser(principal.getName()) : null;
+        return ResponseEntity.ok(orderService.getOrderByCode(orderCode, user, contact));
     }
 }

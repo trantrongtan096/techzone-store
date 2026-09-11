@@ -4,10 +4,12 @@ server:
 spring:
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=techzone_db;encrypt=true;trustServerCertificate=true
-    username: sa
-    password: your-local-password
+    username: your-db-username
+    password: your-db-password
 
 techzone:
+  cors:
+    allowed-origins: http://localhost:4200,https://techzone.vn,https://admin.techzone.vn
   jwt:
     secret: replace-with-a-long-random-secret-at-least-32-characters
     expiration-ms: 86400000
