@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=techzone_db;encrypt=true;trustServerCertificate=true
+    username: sa
+    password: your-local-password
+
+techzone:
+  jwt:
+    secret: replace-with-a-long-random-secret-at-least-32-characters
+    expiration-ms: 86400000

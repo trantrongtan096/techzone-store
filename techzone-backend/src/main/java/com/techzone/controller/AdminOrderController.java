@@ -1,0 +1,40 @@
+package com.techzone.controller;
+
+import com.techzone.entity.Order;
+import com.techzone.repository.OrderRepository;
+import com.techzone.service.OrderService;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin/orders")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+public class AdminOrderController {
+
+    private final OrderRepository orderRepository;
+    private final OrderService orderService;
+
+    @GetMapping
+    public ResponseEntity<List<Order>> getAllOrders() {
+        return ResponseEntity.ok(orderRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Order> updateOrderStatus(@PathVariable Long id, @RequestBody OrderStatusRequest req) {
+        Order updatedOrder = orderService.updateOrderStatus(id, req.getOrderStatus(), req.getPaymentStatus());
+        return ResponseEntity.ok(updatedOrder);
+    }
+
+    @Data
+    public static class OrderStatusRequest {
+        private String orderStatus;
+        private String paymentStatus;
+    }
+}
