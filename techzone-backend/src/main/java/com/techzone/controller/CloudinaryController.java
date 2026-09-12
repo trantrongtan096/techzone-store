@@ -15,7 +15,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/cloudinary")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class CloudinaryController {
 
     private final CloudinaryService cloudinaryService;

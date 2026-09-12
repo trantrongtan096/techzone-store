@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin/brands")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminBrandController {
 
     private final BrandRepository brandRepository;

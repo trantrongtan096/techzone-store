@@ -21,6 +21,16 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.getAllCategories());
     }
 
+    @GetMapping("/categories/navbar")
+    public ResponseEntity<List<Category>> getNavbarCategories() {
+        return ResponseEntity.ok(categoryService.getNavbarCategories());
+    }
+
+    @GetMapping("/categories/homepage")
+    public ResponseEntity<List<Category>> getHomepageCategories() {
+        return ResponseEntity.ok(categoryService.getHomepageCategories());
+    }
+
     @GetMapping("/brands")
     public ResponseEntity<List<Brand>> getBrands() {
         return ResponseEntity.ok(categoryService.getAllBrands());

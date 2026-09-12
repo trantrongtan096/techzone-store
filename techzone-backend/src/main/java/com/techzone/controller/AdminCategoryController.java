@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 @RequestMapping("/api/admin/categories")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminCategoryController {
 
     private final CategoryRepository categoryRepository;
@@ -46,6 +46,12 @@ public class AdminCategoryController {
         if (req.getIsActive() == null) {
             req.setIsActive(true);
         }
+        if (req.getShowInNavbar() == null) {
+            req.setShowInNavbar(false);
+        }
+        if (req.getShowOnHomepage() == null) {
+            req.setShowOnHomepage(false);
+        }
         return ResponseEntity.ok(categoryRepository.save(req));
     }
 
@@ -68,6 +74,12 @@ public class AdminCategoryController {
         }
         if (req.getIsActive() != null) {
             category.setIsActive(req.getIsActive());
+        }
+        if (req.getShowInNavbar() != null) {
+            category.setShowInNavbar(req.getShowInNavbar());
+        }
+        if (req.getShowOnHomepage() != null) {
+            category.setShowOnHomepage(req.getShowOnHomepage());
         }
 
         return ResponseEntity.ok(categoryRepository.save(category));

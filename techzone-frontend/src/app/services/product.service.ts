@@ -15,6 +15,14 @@ export class ProductService {
     return this.http.get<Category[]>(`${this.apiUrl}/categories`);
   }
 
+  getNavbarCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>(`${this.apiUrl}/categories/navbar`);
+  }
+
+  getHomepageCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>(`${this.apiUrl}/categories/homepage`);
+  }
+
   getBrands(): Observable<Brand[]> {
     return this.http.get<Brand[]>(`${this.apiUrl}/brands`);
   }

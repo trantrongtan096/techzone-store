@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -24,6 +25,15 @@ public class OrderController {
     public ResponseEntity<Order> checkout(@Valid @RequestBody CheckoutRequest request, Principal principal) {
         User user = principal != null ? authService.getCurrentUser(principal.getName()) : null;
         return ResponseEntity.ok(orderService.checkout(request, user));
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<Order>> getMyOrders(Principal principal) {
+        if (principal == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Login is required");
+        }
+        User user = authService.getCurrentUser(principal.getName());
+        return ResponseEntity.ok(orderService.getOrdersForUser(user));
     }
 
     @GetMapping("/{orderCode}")

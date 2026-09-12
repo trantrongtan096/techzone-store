@@ -20,9 +20,9 @@ export interface IconOption {
   imports: [CommonModule, FormsModule, AdminHeaderComponent],
   template: `
     <!-- Toast Notification Banner (Fixed Top-Center - Absolutely Zero Layout Shift) -->
-    <div *ngIf="toastMessage()" 
-      [class.bg-emerald-600]="toastMessage()?.type === 'success'" 
-      [class.bg-red-600]="toastMessage()?.type === 'error'" 
+    <div *ngIf="toastMessage()"
+      [class.bg-emerald-600]="toastMessage()?.type === 'success'"
+      [class.bg-red-600]="toastMessage()?.type === 'error'"
       class="fixed top-6 left-1/2 -translate-x-1/2 text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 animate-fade-in border border-white/20 backdrop-blur-md pointer-events-none">
       <i [class]="toastMessage()?.type === 'success' ? 'pi pi-check-circle text-xl' : 'pi pi-exclamation-triangle text-xl'"></i>
       <span class="text-xs font-bold">{{ toastMessage()?.text }}</span>
@@ -31,14 +31,14 @@ export interface IconOption {
     <div class="space-y-6 animate-fade-in relative">
 
       <!-- Standardized Admin Header Component -->
-      <app-admin-header 
+      <app-admin-header
         title="Quản Lý Danh Mục"
         subtitle="Thêm, sửa, chọn Icon JSON động, Upload SVG Logo tùy chỉnh & sắp xếp vị trí hiển thị"
         icon="pi pi-th-large"
         badge="Category Engine"
         [breadcrumbs]="[{ label: 'Quản lý Danh mục' }]">
-        
-        <button 
+
+        <button
           (click)="openModal()"
           class="bg-[#E30019] hover:bg-red-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 cursor-pointer">
           <i class="pi pi-plus"></i>
@@ -49,15 +49,15 @@ export interface IconOption {
       <!-- Toolbar -->
       <div class="bg-[#111827] border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="relative flex-grow max-w-md w-full">
-          <input 
-            type="text" 
+          <input
+            type="text"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
-            placeholder="Tìm danh mục theo tên, slug..." 
+            placeholder="Tìm danh mục theo tên, slug..."
             class="bg-slate-950 border border-slate-800 text-white placeholder-slate-500 rounded-xl py-2 pl-10 pr-8 text-xs w-full focus:outline-none focus:border-red-500 transition-all font-medium" />
           <i class="pi pi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-          <button 
-            *ngIf="searchQuery()" 
+          <button
+            *ngIf="searchQuery()"
             (click)="searchQuery.set('')"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs cursor-pointer">
             <i class="pi pi-times-circle"></i>
@@ -83,9 +83,9 @@ export interface IconOption {
               <tr>
                 <th class="py-3 pl-6 pr-3 w-16 text-center">Kéo</th>
                 <th class="px-3 py-3 w-10 text-center">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isAllSelected()" 
+                  <input
+                    type="checkbox"
+                    [checked]="isAllSelected()"
                     (change)="toggleSelectAll()"
                     class="w-4 h-4 accent-red-600 rounded cursor-pointer" />
                 </th>
@@ -93,13 +93,15 @@ export interface IconOption {
                 <th class="p-4">Tên Danh Mục</th>
                 <th class="p-4">Slug (URL)</th>
                 <th class="p-4 text-center">Trạng Thái</th>
+                <th class="p-4 text-center">Menu</th>
+                <th class="p-4 text-center">Trang Chủ</th>
                 <th class="p-4 text-center">Thứ Tự</th>
                 <th class="p-4 text-center">Hành Động</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/60 font-semibold text-slate-200">
-              <tr 
-                *ngFor="let cat of filteredCategories(); let i = index" 
+              <tr
+                *ngFor="let cat of filteredCategories(); let i = index"
                 draggable="true"
                 (dragstart)="onDragStart($event, i)"
                 (dragover)="onDragOver($event, i)"
@@ -115,7 +117,7 @@ export interface IconOption {
                 [class.bg-slate-800]="dragOverIndex === i && draggedIndex !== i"
                 [class.shadow-lg]="dragOverIndex === i && draggedIndex !== i"
                 class="hover:bg-slate-800/40 transition-all duration-150 relative">
-                
+
                 <!-- Drag Grip -->
                 <td class="py-3 pl-6 pr-3 text-center cursor-grab active:cursor-grabbing text-slate-500 hover:text-red-400 transition-colors">
                   <div class="inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-800 transition-all" title="Kéo thả để thay đổi vị trí">
@@ -125,9 +127,9 @@ export interface IconOption {
 
                 <!-- Checkbox -->
                 <td class="px-3 py-3 text-center">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isSelected(cat.id)" 
+                  <input
+                    type="checkbox"
+                    [checked]="isSelected(cat.id)"
                     (change)="toggleSelection(cat.id)"
                     class="w-4 h-4 accent-red-600 rounded cursor-pointer" />
                 </td>
@@ -154,11 +156,11 @@ export interface IconOption {
 
                 <!-- Status Toggle -->
                 <td class="p-4 text-center">
-                  <button 
+                  <button
                     (click)="toggleActive(cat)"
                     [class]="(cat.isActive !== false) ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-400'"
                     class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
-                    <span 
+                    <span
                       [class]="(cat.isActive !== false) ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
                       class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
                   </button>
@@ -167,17 +169,47 @@ export interface IconOption {
                   </span>
                 </td>
 
+                <!-- Navbar Toggle -->
+                <td class="p-4 text-center">
+                  <button
+                    (click)="toggleCategoryFlag(cat, 'showInNavbar')"
+                    [class]="cat.showInNavbar === true ? 'bg-[#E30019] text-white' : 'bg-slate-700 text-slate-400'"
+                    class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
+                    <span
+                      [class]="cat.showInNavbar === true ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
+                      class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
+                  </button>
+                  <span class="block text-[10px] font-bold mt-1" [class]="cat.showInNavbar === true ? 'text-red-400' : 'text-slate-500'">
+                    {{ cat.showInNavbar === true ? 'Hiện menu' : 'Ẩn menu' }}
+                  </span>
+                </td>
+
+                <!-- Homepage Toggle -->
+                <td class="p-4 text-center">
+                  <button
+                    (click)="toggleCategoryFlag(cat, 'showOnHomepage')"
+                    [class]="cat.showOnHomepage === true ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-400'"
+                    class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
+                    <span
+                      [class]="cat.showOnHomepage === true ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
+                      class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
+                  </button>
+                  <span class="block text-[10px] font-bold mt-1" [class]="cat.showOnHomepage === true ? 'text-amber-400' : 'text-slate-500'">
+                    {{ cat.showOnHomepage === true ? 'Hiện home' : 'Ẩn home' }}
+                  </span>
+                </td>
+
                 <!-- Priority / Reorder Buttons -->
                 <td class="p-4 text-center">
                   <div class="flex items-center justify-center gap-1 font-mono font-bold text-amber-400">
-                    <button 
+                    <button
                       [disabled]="i === 0"
                       (click)="moveUp(i)"
                       class="w-6 h-6 rounded hover:bg-slate-800 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer flex items-center justify-center">
                       <i class="pi pi-chevron-up text-[10px]"></i>
                     </button>
                     <span class="min-w-[24px]">#{{ i + 1 }}</span>
-                    <button 
+                    <button
                       [disabled]="i === filteredCategories().length - 1"
                       (click)="moveDown(i)"
                       class="w-6 h-6 rounded hover:bg-slate-800 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer flex items-center justify-center">
@@ -189,13 +221,13 @@ export interface IconOption {
                 <!-- Actions -->
                 <td class="p-4 text-center">
                   <div class="flex items-center justify-center gap-2">
-                    <button 
+                    <button
                       (click)="openModal(cat)"
                       class="w-8 h-8 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                       title="Chỉnh sửa">
                       <i class="pi pi-pencil"></i>
                     </button>
-                    <button 
+                    <button
                       (click)="deleteCategory(cat.id, cat.name)"
                       class="w-8 h-8 rounded-lg bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                       title="Xóa danh mục">
@@ -205,7 +237,7 @@ export interface IconOption {
                 </td>
               </tr>
               <tr *ngIf="filteredCategories().length === 0">
-                <td colspan="8" class="p-8 text-center text-slate-400">Không tìm thấy danh mục nào phù hợp.</td>
+                <td colspan="10" class="p-8 text-center text-slate-400">Không tìm thấy danh mục nào phù hợp.</td>
               </tr>
             </tbody>
           </table>
@@ -241,13 +273,13 @@ export interface IconOption {
             <!-- Name Input -->
             <div>
               <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Tên Danh Mục *</label>
-              <input 
-                type="text" 
-                [(ngModel)]="formData.name" 
+              <input
+                type="text"
+                [(ngModel)]="formData.name"
                 (ngModelChange)="onNameChange()"
-                name="name" 
-                required 
-                placeholder="VD: Laptop Gaming" 
+                name="name"
+                required
+                placeholder="VD: Laptop Gaming"
                 class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-bold" />
             </div>
 
@@ -257,12 +289,12 @@ export interface IconOption {
                 <label class="block text-xs font-bold uppercase text-slate-400">Slug (URL-friendly)</label>
                 <span class="text-[10px] text-slate-500 italic">Tự động sinh từ tên</span>
               </div>
-              <input 
-                type="text" 
-                [(ngModel)]="formData.slug" 
+              <input
+                type="text"
+                [(ngModel)]="formData.slug"
                 (ngModelChange)="onSlugChange()"
-                name="slug" 
-                placeholder="VD: laptop-gaming" 
+                name="slug"
+                placeholder="VD: laptop-gaming"
                 class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-amber-400 focus:outline-none focus:border-red-500" />
             </div>
 
@@ -277,16 +309,16 @@ export interface IconOption {
                 </div>
 
                 <!-- Input -->
-                <input 
-                  type="text" 
-                  [(ngModel)]="formData.icon" 
-                  name="icon" 
-                  placeholder="VD: fa-solid fa-laptop hoặc https://.../logo.svg" 
+                <input
+                  type="text"
+                  [(ngModel)]="formData.icon"
+                  name="icon"
+                  placeholder="VD: fa-solid fa-laptop hoặc https://.../logo.svg"
                   class="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono" />
 
                 <!-- Icon Picker Trigger -->
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   (click)="showIconPicker.set(true)"
                   class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0">
                   <i class="fa-solid fa-icons text-amber-400"></i>
@@ -299,29 +331,64 @@ export interface IconOption {
             <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-3 rounded-xl">
               <div>
                 <span class="block text-xs font-bold text-white">Trạng thái hiển thị</span>
-                <span class="block text-[10px] text-slate-400">Bật để hiển thị danh mục trên Menu & Trang chủ</span>
+                <span class="block text-[10px] text-slate-400">Bật để danh mục có thể dùng trong hệ thống</span>
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 (click)="formData.isActive = !formData.isActive"
                 [class]="(formData.isActive !== false) ? 'bg-emerald-600' : 'bg-slate-700'"
                 class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
-                <span 
+                <span
                   [class]="(formData.isActive !== false) ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
                   class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
               </button>
             </div>
 
+            <!-- Display Scope Toggles -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-3 rounded-xl">
+                <div>
+                  <span class="block text-xs font-bold text-white">Hiện trên menu</span>
+                  <span class="block text-[10px] text-slate-400">Thanh menu đỏ phía trên</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="formData.showInNavbar = !formData.showInNavbar"
+                  [class]="formData.showInNavbar === true ? 'bg-[#E30019]' : 'bg-slate-700'"
+                  class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
+                  <span
+                    [class]="formData.showInNavbar === true ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
+                    class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
+                </button>
+              </div>
+
+              <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-3 rounded-xl">
+                <div>
+                  <span class="block text-xs font-bold text-white">Hiện trang chủ</span>
+                  <span class="block text-[10px] text-slate-400">Khu danh mục nổi bật</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="formData.showOnHomepage = !formData.showOnHomepage"
+                  [class]="formData.showOnHomepage === true ? 'bg-amber-500' : 'bg-slate-700'"
+                  class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none cursor-pointer p-0.5">
+                  <span
+                    [class]="formData.showOnHomepage === true ? 'translate-x-5 bg-white' : 'translate-x-0 bg-white'"
+                    class="inline-block w-5 h-5 transform rounded-full transition-transform shadow-sm"></span>
+                </button>
+              </div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 (click)="showModal.set(false)"
                 class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
                 Hủy bỏ
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 [disabled]="loadingSave()"
                 class="bg-[#E30019] hover:bg-red-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 cursor-pointer">
                 <i class="pi pi-spin pi-spinner" *ngIf="loadingSave()"></i>
@@ -335,7 +402,7 @@ export interface IconOption {
       <!-- ICON PICKER & SVG UPLOAD MODAL -->
       <div *ngIf="showIconPicker()" class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fade-in">
         <div class="bg-[#111827] border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl relative flex flex-col overflow-hidden text-slate-200">
-          
+
           <!-- Sticky Header -->
           <div class="p-5 border-b border-slate-800 bg-[#111827] shrink-0 space-y-3">
             <div class="flex items-center justify-between">
@@ -347,8 +414,8 @@ export interface IconOption {
                 <p class="text-xs text-slate-400">Chọn Icon từ dữ liệu JSON động hoặc tự tải lên logo thương hiệu SVG</p>
               </div>
 
-              <button 
-                (click)="showIconPicker.set(false)" 
+              <button
+                (click)="showIconPicker.set(false)"
                 class="text-slate-400 hover:text-white w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0">
                 <i class="pi pi-times"></i>
               </button>
@@ -357,29 +424,29 @@ export interface IconOption {
             <!-- Search & Filter Tab Controls -->
             <div class="flex flex-col sm:flex-row items-center gap-2.5">
               <div class="relative flex-grow w-full" *ngIf="activeTab !== 'upload'">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   [(ngModel)]="iconSearchQuery"
-                  placeholder="Tìm kiếm trong 2,000+ icon (laptop, pc, mouse, rog, msi...)..." 
+                  placeholder="Tìm kiếm trong 2,000+ icon (laptop, pc, mouse, rog, msi...)..."
                   class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-medium" />
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
               </div>
 
               <!-- Filter Tabs -->
               <div class="flex items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-xl shrink-0 text-[11px] font-bold overflow-x-auto max-w-full">
-                <button 
+                <button
                   (click)="activeTab = 'all'; iconProviderFilter = 'all'"
                   [class]="activeTab === 'all' && iconProviderFilter === 'all' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
                   class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap">
                   Tất cả ({{ allIcons.length }})
                 </button>
-                <button 
+                <button
                   (click)="activeTab = 'all'; iconProviderFilter = 'fa'"
                   [class]="activeTab === 'all' && iconProviderFilter === 'fa' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
                   class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1">
                   <i class="fa-brands fa-font-awesome text-white"></i> FontAwesome
                 </button>
-                <button 
+                <button
                   (click)="activeTab = 'upload'"
                   [class]="activeTab === 'upload' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
                   class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1">
@@ -391,10 +458,10 @@ export interface IconOption {
 
           <!-- Tab Content Container -->
           <div class="p-5 flex-grow overflow-y-auto custom-scrollbar bg-slate-950">
-            
+
             <!-- TAB 1 & 2: ICON GRID (JSON DYNAMIC) -->
             <div *ngIf="activeTab !== 'upload'" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-              <button 
+              <button
                 *ngFor="let iconOpt of filteredIcons()"
                 type="button"
                 (click)="selectIcon(iconOpt.class)"
@@ -406,8 +473,8 @@ export interface IconOption {
                 [class.text-slate-300]="formData.icon !== iconOpt.class"
                 [class.border-slate-800]="formData.icon !== iconOpt.class"
                 class="p-3 border rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group h-20 relative">
-                
-                <span 
+
+                <span
                   [class]="iconOpt.provider === 'fa' ? 'bg-blue-950 text-blue-400 border border-blue-500/30' : 'bg-red-950 text-red-400 border border-red-500/30'"
                   class="absolute top-1 right-1 text-[8px] font-black uppercase px-1 rounded">
                   {{ iconOpt.provider }}
@@ -424,12 +491,12 @@ export interface IconOption {
             <!-- TAB 3: CUSTOM UPLOAD SVG / IMAGE LOGO -->
             <div *ngIf="activeTab === 'upload'" class="space-y-5 max-w-md mx-auto py-2">
               <div class="bg-white border-2 border-dashed border-slate-300 hover:border-red-500 rounded-2xl p-6 text-center space-y-3 transition-colors cursor-pointer relative">
-                <input 
-                  type="file" 
-                  accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp" 
+                <input
+                  type="file"
+                  accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp"
                   (change)="onSvgFileUpload($event)"
                   class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-                
+
                 <div class="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center mx-auto text-xl">
                   <i class="fa-solid fa-cloud-arrow-up"></i>
                 </div>
@@ -448,14 +515,14 @@ export interface IconOption {
 
               <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">Đường dẫn URL Logo SVG / Ảnh</label>
-                <input 
-                  type="text" 
-                  [(ngModel)]="customSvgUrl" 
-                  placeholder="https://rog.asus.com/logo.svg hoặc /assets/logos/msi.svg" 
+                <input
+                  type="text"
+                  [(ngModel)]="customSvgUrl"
+                  placeholder="https://rog.asus.com/logo.svg hoặc /assets/logos/msi.svg"
                   class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500 font-mono" />
-                <button 
-                  type="button" 
-                  (click)="applyCustomSvgUrl()" 
+                <button
+                  type="button"
+                  (click)="applyCustomSvgUrl()"
                   class="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2 rounded-xl transition-all cursor-pointer">
                   Sử dụng URL Logo Này
                 </button>
@@ -489,18 +556,18 @@ export interface IconOption {
                 <i *ngIf="!isImageUrl(formData.icon)" [class]="formData.icon || 'fa-solid fa-tag'" class="text-red-600"></i>
                 <span class="truncate">{{ formData.icon || 'Chưa chọn' }}</span>
               </div>
-              
-              <a 
-                href="https://fontawesome.com/search?o=r&m=free" 
-                target="_blank" 
+
+              <a
+                href="https://fontawesome.com/search?o=r&m=free"
+                target="_blank"
                 class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1 ml-auto sm:ml-2">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Tra cứu 2,000+ Icon FontAwesome
               </a>
             </div>
 
-            <button 
-              type="button" 
-              (click)="showIconPicker.set(false)" 
+            <button
+              type="button"
+              (click)="showIconPicker.set(false)"
               class="px-5 py-2 font-bold text-xs text-white bg-slate-800 hover:bg-slate-900 rounded-xl cursor-pointer shadow-md transition-all w-full sm:w-auto">
               Đồng Ý / Đóng
             </button>
@@ -520,12 +587,12 @@ export interface IconOption {
             Bạn có chắc chắn muốn xóa vĩnh viễn <strong class="text-slate-800 font-bold">{{ selectedCategoryIds().length }}</strong> danh mục đã chọn? Thao tác này không thể hoàn tác. Các danh mục đang có sản phẩm sẽ được tự động bỏ qua để bảo vệ dữ liệu.
           </p>
           <div class="flex items-center justify-end gap-3 pt-2">
-            <button 
+            <button
               (click)="showDeleteConfirmModal.set(false)"
               class="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:text-slate-800 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer text-xs">
               Hủy bỏ
             </button>
-            <button 
+            <button
               (click)="confirmBulkDelete()"
               class="px-4 py-2.5 rounded-xl font-bold text-white bg-[#E30019] hover:bg-red-700 transition-all cursor-pointer text-xs">
               Xác nhận Xóa
@@ -541,13 +608,15 @@ export class AdminCategoryListComponent implements OnInit {
   showModal = signal(false);
   showIconPicker = signal(false);
   editId = signal<number | null>(null);
-  
-  formData = { 
-    name: '', 
-    slug: '', 
-    icon: 'fa-solid fa-laptop', 
-    priority: 1, 
-    isActive: true 
+
+  formData = {
+    name: '',
+    slug: '',
+    icon: 'fa-solid fa-laptop',
+    priority: 1,
+    isActive: true,
+    showInNavbar: false,
+    showOnHomepage: false
   };
   isSlugCustomized = false;
 
@@ -666,8 +735,8 @@ export class AdminCategoryListComponent implements OnInit {
     let list = this.categories();
     const q = this.searchQuery().trim().toLowerCase();
     if (q) {
-      list = list.filter(c => 
-        c.name.toLowerCase().includes(q) || 
+      list = list.filter(c =>
+        c.name.toLowerCase().includes(q) ||
         (c.slug && c.slug.toLowerCase().includes(q))
       );
     }
@@ -683,8 +752,8 @@ export class AdminCategoryListComponent implements OnInit {
 
     const q = this.iconSearchQuery ? this.iconSearchQuery.trim().toLowerCase() : '';
     if (q) {
-      list = list.filter(icon => 
-        icon.name.toLowerCase().includes(q) || 
+      list = list.filter(icon =>
+        icon.name.toLowerCase().includes(q) ||
         icon.class.toLowerCase().includes(q) ||
         (icon.keywords && icon.keywords.some(k => k.toLowerCase().includes(q)))
       );
@@ -701,11 +770,11 @@ export class AdminCategoryListComponent implements OnInit {
   isImageUrl(icon?: string): boolean {
     if (!icon) return false;
     const str = icon.trim();
-    return str.startsWith('http://') || 
-           str.startsWith('https://') || 
-           str.startsWith('data:image/') || 
-           str.startsWith('/') || 
-           str.startsWith('assets/') || 
+    return str.startsWith('http://') ||
+           str.startsWith('https://') ||
+           str.startsWith('data:image/') ||
+           str.startsWith('/') ||
+           str.startsWith('assets/') ||
            /\.(svg|png|jpg|jpeg|webp)$/i.test(str);
   }
 
@@ -792,7 +861,7 @@ export class AdminCategoryListComponent implements OnInit {
       const list = [...this.categories()];
       const [movedItem] = list.splice(this.draggedIndex, 1);
       list.splice(dropIndex, 0, movedItem);
-      
+
       this.categories.set(list);
       this.saveReorder();
     }
@@ -860,7 +929,7 @@ export class AdminCategoryListComponent implements OnInit {
   }
 
   toggleSelection(id: number): void {
-    this.selectedCategoryIds.update(ids => 
+    this.selectedCategoryIds.update(ids =>
       ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
     );
   }
@@ -873,22 +942,26 @@ export class AdminCategoryListComponent implements OnInit {
   openModal(cat?: any): void {
     if (cat) {
       this.editId.set(cat.id);
-      this.formData = { 
-        name: cat.name, 
-        slug: cat.slug || '', 
-        icon: cat.icon || 'fa-solid fa-tag', 
+      this.formData = {
+        name: cat.name,
+        slug: cat.slug || '',
+        icon: cat.icon || 'fa-solid fa-tag',
         priority: cat.priority || 1,
-        isActive: cat.isActive !== false
+        isActive: cat.isActive !== false,
+        showInNavbar: cat.showInNavbar === true,
+        showOnHomepage: cat.showOnHomepage === true
       };
       this.isSlugCustomized = true;
     } else {
       this.editId.set(null);
-      this.formData = { 
-        name: '', 
-        slug: '', 
-        icon: 'fa-solid fa-laptop', 
+      this.formData = {
+        name: '',
+        slug: '',
+        icon: 'fa-solid fa-laptop',
         priority: this.categories().length + 1,
-        isActive: true
+        isActive: true,
+        showInNavbar: false,
+        showOnHomepage: false
       };
       this.isSlugCustomized = false;
     }
@@ -930,6 +1003,29 @@ export class AdminCategoryListComponent implements OnInit {
         }
       });
     }
+  }
+
+  toggleCategoryFlag(cat: any, field: 'showInNavbar' | 'showOnHomepage'): void {
+    const previous = cat[field] === true;
+    cat[field] = !previous;
+    this.adminService.updateCategory(cat.id, {
+      name: cat.name,
+      slug: cat.slug,
+      icon: cat.icon,
+      priority: cat.priority,
+      isActive: cat.isActive !== false,
+      showInNavbar: cat.showInNavbar === true,
+      showOnHomepage: cat.showOnHomepage === true
+    }).subscribe({
+      next: () => {
+        const label = field === 'showInNavbar' ? 'menu chính' : 'trang chủ';
+        this.showToast(`Đã cập nhật hiển thị ${label} cho "${cat.name}"!`);
+      },
+      error: () => {
+        cat[field] = previous;
+        this.showToast('Lỗi khi cập nhật hiển thị danh mục!', 'error');
+      }
+    });
   }
 
   deleteCategory(id: number, name: string): void {

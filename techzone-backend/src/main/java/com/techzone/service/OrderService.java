@@ -3,11 +3,13 @@ package com.techzone.service;
 import com.techzone.dto.CheckoutRequest;
 import com.techzone.entity.Cart;
 import com.techzone.entity.CartItem;
+import com.techzone.entity.FlashSaleItem;
 import com.techzone.entity.Order;
 import com.techzone.entity.OrderItem;
 import com.techzone.entity.Product;
 import com.techzone.entity.User;
 import com.techzone.repository.CartRepository;
+import com.techzone.repository.FlashSaleItemRepository;
 import com.techzone.repository.OrderRepository;
 import com.techzone.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +30,8 @@ public class OrderService {
     private final CartService cartService;
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
+    private final FlashSaleItemRepository flashSaleItemRepository;
+    private final PaymentService paymentService;
 
     @Transactional
     public Order checkout(CheckoutRequest request, User user) {
@@ -41,6 +46,8 @@ public class OrderService {
             int quantity = cartItem.getQuantity();
 
             if (product != null) {
+                reserveFlashSaleIfActive(product, quantity);
+
                 int updated = productRepository.deductStockAtomic(product.getId(), quantity);
                 if (updated == 0) {
                     int currentStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
@@ -51,14 +58,15 @@ public class OrderService {
 
         BigDecimal totalAmount = cart.getItems().stream()
                 .map(item -> {
-                    BigDecimal price = item.getProduct().getPromotionPrice() != null
-                            ? item.getProduct().getPromotionPrice()
-                            : item.getProduct().getOriginalPrice();
+                    BigDecimal price = resolveCheckoutPrice(item.getProduct());
                     return price.multiply(BigDecimal.valueOf(item.getQuantity()));
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal shippingFee = request.getShippingFee() != null ? request.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal discountAmount = normalizeDiscount(request.getDiscountAmount(), totalAmount.add(shippingFee));
+        BigDecimal payableAmount = totalAmount.add(shippingFee).subtract(discountAmount);
 
-        String orderCode = "TZ-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String orderCode = generateOrderCode();
 
         Order order = Order.builder()
                 .orderCode(orderCode)
@@ -70,14 +78,13 @@ public class OrderService {
                 .paymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "COD")
                 .paymentStatus("PENDING")
                 .orderStatus("PENDING")
-                .totalAmount(totalAmount)
+                .totalAmount(payableAmount)
+                .discountAmount(discountAmount)
                 .note(request.getNote())
                 .build();
 
         List<OrderItem> orderItems = cart.getItems().stream().map(cartItem -> {
-            BigDecimal price = cartItem.getProduct().getPromotionPrice() != null
-                    ? cartItem.getProduct().getPromotionPrice()
-                    : cartItem.getProduct().getOriginalPrice();
+            BigDecimal price = resolveCheckoutPrice(cartItem.getProduct());
 
             return OrderItem.builder()
                     .order(order)
@@ -90,11 +97,49 @@ public class OrderService {
 
         order.getItems().addAll(orderItems);
         Order savedOrder = orderRepository.save(order);
+        paymentService.createPaymentForOrder(savedOrder);
 
         cart.getItems().clear();
         cartRepository.save(cart);
 
         return savedOrder;
+    }
+
+    private void reserveFlashSaleIfActive(Product product, int quantity) {
+        flashSaleItemRepository.findActiveItemByProductId(product.getId(), java.time.LocalDateTime.now())
+                .ifPresent(item -> {
+                    int reserved = flashSaleItemRepository.reserveQuantity(item.getId(), quantity);
+                    if (reserved == 0) {
+                        throw new RuntimeException("Flash sale quantity is no longer available for product [" + product.getName() + "]");
+                    }
+                });
+    }
+
+    private String generateOrderCode() {
+        return "TZ"
+                + java.time.LocalDateTime.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+                + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
+    }
+
+    private BigDecimal normalizeDiscount(BigDecimal discountAmount, BigDecimal maxAmount) {
+        if (discountAmount == null || discountAmount.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+        if (discountAmount.compareTo(maxAmount) > 0) {
+            return maxAmount;
+        }
+        return discountAmount;
+    }
+
+    private BigDecimal resolveCheckoutPrice(Product product) {
+        return flashSaleItemRepository.findActiveItemByProductId(product.getId(), java.time.LocalDateTime.now())
+                .map(FlashSaleItem::getFlashSalePrice)
+                .orElseGet(() -> {
+                    if (Boolean.TRUE.equals(product.getIsFlashSale())) {
+                        return product.getOriginalPrice();
+                    }
+                    return product.getPromotionPrice() != null ? product.getPromotionPrice() : product.getOriginalPrice();
+                });
     }
 
     @Transactional
@@ -127,6 +172,13 @@ public class OrderService {
         }
 
         return orderRepository.save(order);
+    }
+
+    public List<Order> getOrdersForUser(User user) {
+        if (user == null) {
+            throw new AccessDeniedException("Login is required");
+        }
+        return orderRepository.findByUserOrderByCreatedAtDesc(user);
     }
 
     public Order getOrderByCode(String orderCode, User user, String contact) {

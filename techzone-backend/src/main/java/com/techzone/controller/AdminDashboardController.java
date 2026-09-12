@@ -1,5 +1,6 @@
 package com.techzone.controller;
 
+import com.techzone.dto.AdminOrderResponse;
 import com.techzone.entity.Order;
 import com.techzone.entity.Product;
 import com.techzone.repository.OrderRepository;
@@ -19,7 +20,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/dashboard")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminDashboardController {
 
     private final OrderRepository orderRepository;
@@ -44,12 +45,12 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/recent-orders")
-    public ResponseEntity<List<Order>> getRecentOrders() {
+    public ResponseEntity<List<AdminOrderResponse>> getRecentOrders() {
         List<Order> orders = orderRepository.findAllByOrderByCreatedAtDesc();
         if (orders.size() > 5) {
             orders = orders.subList(0, 5);
         }
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orders.stream().map(AdminOrderResponse::from).toList());
     }
 
     @GetMapping("/low-stock")

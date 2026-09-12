@@ -23,7 +23,7 @@ import { HomeService, Banner } from './services/home.service';
         <!-- DYNAMIC FLOATING STICKY BANNERS FROM BACKEND API (NO DARK BORDERS) -->
         <!-- Floating Left Banner -->
         <div 
-          *ngIf="showSideBanners() && !isNearFooter() && floatingLeftBanner()" 
+          *ngIf="!isCheckoutRoute() && showSideBanners() && !isNearFooter() && floatingLeftBanner()"
           class="fixed top-[125px] left-2 z-20 hidden xl:block animate-fade-in group transition-all duration-300">
           <div class="relative w-36 rounded-2xl overflow-hidden shadow-xl border-0 bg-transparent">
             <button 
@@ -39,7 +39,7 @@ import { HomeService, Banner } from './services/home.service';
 
         <!-- Floating Right Banner -->
         <div 
-          *ngIf="showSideBanners() && !isNearFooter() && floatingRightBanner()" 
+          *ngIf="!isCheckoutRoute() && showSideBanners() && !isNearFooter() && floatingRightBanner()"
           class="fixed top-[125px] right-2 z-20 hidden xl:block animate-fade-in group transition-all duration-300">
           <div class="relative w-36 rounded-2xl overflow-hidden shadow-xl border-0 bg-transparent">
             <button 
@@ -57,7 +57,7 @@ import { HomeService, Banner } from './services/home.service';
         <app-header (openAuthModal)="showAuthModal.set(true)"></app-header>
         
         <!-- MAIN CENTERED CONTENT CONTAINER WITH EXACT PADDING-TOP FOR FIXED HEADER -->
-        <main class="flex-grow w-full max-w-[1200px] mx-auto px-4 py-4 pt-[115px]">
+        <main [class.checkout-layout]="isCheckoutRoute()" class="flex-grow w-full max-w-[1200px] mx-auto px-4 py-4 pt-[115px]">
           <router-outlet></router-outlet>
         </main>
 
@@ -98,17 +98,24 @@ import { HomeService, Banner } from './services/home.service';
         </div>
 
         <!-- FOOTER -->
-        <app-footer></app-footer>
+        <app-footer [compact]="isCheckoutRoute()"></app-footer>
 
         <!-- AUTH MODAL -->
         <app-auth-modal *ngIf="showAuthModal()" (closeModal)="showAuthModal.set(false)"></app-auth-modal>
       </div>
     </ng-template>
-  `
+  `,
+  styles: [`
+    main.checkout-layout { max-width: 1280px; padding: 100px 24px 12px; }
+    @media (max-width: 767px) {
+      main.checkout-layout { padding: 115px 12px 16px; }
+    }
+  `]
 })
 export class AppComponent implements OnInit, OnDestroy {
   showAuthModal = signal(false);
   isAdminRoute = signal(false);
+  isCheckoutRoute = signal(false);
 
   // Side Sticky Floating Banners Signals
   floatingLeftBanner = signal<Banner | null>(null);
@@ -129,7 +136,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events.pipe(
       filter(e => e instanceof NavigationEnd)
     ).subscribe((e: any) => {
+      const currentUrl = e.urlAfterRedirects.split('?')[0];
       this.isAdminRoute.set(e.urlAfterRedirects.startsWith('/admin'));
+      this.isCheckoutRoute.set(currentUrl === '/checkout' || currentUrl.startsWith('/payment/'));
     });
 
     // Load Side Floating Banners from API

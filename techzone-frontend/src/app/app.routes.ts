@@ -4,6 +4,9 @@ import { ProductListComponent } from './pages/product-list/product-list.componen
 import { ProductDetailComponent } from './pages/product-detail/product-detail.component';
 import { CartComponent } from './pages/cart/cart.component';
 import { CheckoutComponent } from './pages/checkout/checkout.component';
+import { PaymentComponent } from './pages/payment/payment.component';
+import { PaymentSuccessComponent } from './pages/payment-success/payment-success.component';
+import { MyOrdersComponent } from './pages/my-orders/my-orders.component';
 
 import { adminGuard } from './guards/admin.guard';
 import { superAdminGuard } from './guards/super-admin.guard';
@@ -28,6 +31,9 @@ export const routes: Routes = [
   { path: 'products/:slug', component: ProductDetailComponent },
   { path: 'cart', component: CartComponent },
   { path: 'checkout', component: CheckoutComponent },
+  { path: 'account/orders', component: MyOrdersComponent },
+  { path: 'payment/:orderCode/success', component: PaymentSuccessComponent },
+  { path: 'payment/:orderCode', component: PaymentComponent },
 
   {
     path: 'admin',

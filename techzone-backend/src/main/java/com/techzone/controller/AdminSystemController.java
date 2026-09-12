@@ -14,7 +14,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/system")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminSystemController {
 
     private final SystemSettingService settingService;

@@ -29,6 +29,14 @@ public class CategoryService {
         return categoryRepository.findActiveCategoriesOrdered();
     }
 
+    public List<Category> getNavbarCategories() {
+        return categoryRepository.findNavbarCategoriesOrdered();
+    }
+
+    public List<Category> getHomepageCategories() {
+        return categoryRepository.findHomepageCategoriesOrdered();
+    }
+
     public List<Brand> getAllBrands() {
         return brandRepository.findAll();
     }

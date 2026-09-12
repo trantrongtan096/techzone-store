@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
@@ -14,25 +14,71 @@ import { Category, Product } from '../../models/product.model';
   imports: [CommonModule, RouterModule],
   template: `
     <div class="space-y-10 pb-12 animate-fade-in">
-      
+      <div
+        *ngIf="cartToast()"
+        class="fixed top-24 right-6 z-[100] w-[360px] max-w-[calc(100vw-32px)] bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+        <div class="p-4 flex items-start gap-3">
+          <div [class]="cartToast()?.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'" class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0">
+            <i [class]="cartToast()?.type === 'success' ? 'pi pi-check-circle text-lg' : 'pi pi-exclamation-triangle text-lg'"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-black">{{ cartToast()?.title }}</div>
+            <div class="mt-2 flex gap-3">
+              <img *ngIf="cartToast()?.product" [src]="getProductImage(cartToast()?.product)" (error)="onProductImageError($event)" [alt]="cartToast()?.product?.name" class="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 object-contain p-1 shrink-0" />
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-slate-800 line-clamp-2">{{ cartToast()?.product?.name || cartToast()?.message }}</div>
+                <div *ngIf="cartToast()?.product" class="mt-1 text-sm font-black text-[#E30019]">
+                  {{ ((cartToast()?.product?.promotionPrice || cartToast()?.product?.originalPrice) || 0) | number:'1.0-0' }}đ
+                </div>
+              </div>
+                <div class="hidden md:flex items-center gap-2">
+                  <button
+                    type="button"
+                    (click)="scrollFlashSale('left', $event)"
+                    class="w-8 h-8 rounded-full bg-white/10 text-white border border-white/15 shadow-sm flex items-center justify-center hover:bg-[#E30019] hover:border-[#E30019] transition-colors">
+                    <i class="pi pi-chevron-left text-[10px]"></i>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="scrollFlashSale('right', $event)"
+                    class="w-8 h-8 rounded-full bg-white/10 text-white border border-white/15 shadow-sm flex items-center justify-center hover:bg-[#E30019] hover:border-[#E30019] transition-colors">
+                    <i class="pi pi-chevron-right text-[10px]"></i>
+                  </button>
+                </div>
+            </div>
+          </div>
+          <button type="button" (click)="cartToast.set(null)" class="text-slate-400 hover:text-slate-700 cursor-pointer">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 px-4 pb-4">
+          <a routerLink="/cart" (click)="cartToast.set(null)" class="text-center bg-slate-950 hover:bg-[#E30019] text-white text-xs font-black py-2.5 rounded-2xl transition-colors">
+            XEM GIỎ HÀNG
+          </a>
+          <button type="button" (click)="cartToast.set(null)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-2.5 rounded-2xl transition-colors cursor-pointer">
+            TIẾP TỤC MUA
+          </button>
+        </div>
+      </div>
+
       <!-- DYNAMIC BLOCKS ORDER RENDERER -->
       <ng-container *ngFor="let blk of activeSortedBlocks()">
-        
+
         <!-- 1. HERO BANNER SLIDER -->
         <section *ngIf="blk.type === 'HERO_SLIDER'" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <!-- Main Banner Carousel Container -->
           <div class="lg:col-span-8 relative rounded-2xl overflow-hidden shadow-sm h-[320px] md:h-[400px] group border-0 bg-transparent">
-            
+
             <!-- Slide Image Area -->
             <a [routerLink]="currentHeroBanner()?.targetUrl || '/products'" class="block w-full h-full relative rounded-2xl overflow-hidden">
-              <img 
-                [src]="currentHeroBanner()?.imageUrl || defaultHero.imageUrl" 
-                [alt]="currentHeroBanner()?.title || defaultHero.title" 
+              <img
+                [src]="currentHeroBanner()?.imageUrl || defaultHero.imageUrl"
+                [alt]="currentHeroBanner()?.title || defaultHero.title"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 rounded-2xl" />
 
               <!-- OPTIONAL SUBTLE OVERLAY BADGE -->
-              <div 
-                *ngIf="currentHeroBanner()?.showOverlay" 
+              <div
+                *ngIf="currentHeroBanner()?.showOverlay"
                 class="absolute top-4 left-4 z-10 animate-fade-in pointer-events-none">
                 <div class="inline-flex items-center gap-2 bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/15 text-white shadow-lg">
                   <span class="text-amber-400 font-black text-xs shrink-0">
@@ -46,7 +92,7 @@ import { Category, Product } from '../../models/product.model';
             </a>
 
             <!-- NAVIGATION ARROWS -->
-            <button 
+            <button
               *ngIf="heroBanners().length > 1"
               (click)="onPrevSlide($event)"
               aria-label="Previous Slide"
@@ -54,7 +100,7 @@ import { Category, Product } from '../../models/product.model';
               <i class="pi pi-chevron-left text-sm font-bold"></i>
             </button>
 
-            <button 
+            <button
               *ngIf="heroBanners().length > 1"
               (click)="onNextSlide($event)"
               aria-label="Next Slide"
@@ -64,8 +110,8 @@ import { Category, Product } from '../../models/product.model';
 
             <!-- DASH INDICATORS -->
             <div *ngIf="heroBanners().length > 1" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-950/50 backdrop-blur-md border border-white/20 px-3.5 py-2 rounded-full shadow-lg animate-fade-in">
-              <button 
-                *ngFor="let item of heroBanners(); let i = index" 
+              <button
+                *ngFor="let item of heroBanners(); let i = index"
                 (click)="onSelectSlide(i, $event)"
                 [attr.aria-label]="'Go to slide ' + (i + 1)"
                 [ngClass]="{
@@ -82,7 +128,7 @@ import { Category, Product } from '../../models/product.model';
             <!-- Card Top -->
             <a [routerLink]="sideTopBanner()?.targetUrl || '/products'" class="border-0 rounded-2xl relative overflow-hidden block shadow-sm hover:shadow-md transition-all group min-h-[190px] h-full bg-transparent">
               <img *ngIf="sideTopBanner()?.imageUrl" [src]="sideTopBanner()?.imageUrl" [alt]="sideTopBanner()?.title || 'Banner Side Top'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
-              
+
               <div *ngIf="sideTopBanner()?.showOverlay && sideTopBanner()?.imageUrl" class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent p-4 flex flex-col justify-end text-white animate-fade-in pointer-events-none rounded-2xl">
                 <span class="text-amber-400 font-bold text-xs tracking-wider uppercase drop-shadow-xs">{{ sideTopBanner()?.subtitle || 'DEAL HOT MỖI NGÀY' }}</span>
                 <h3 class="text-base font-black text-white mt-0.5 drop-shadow-md leading-tight line-clamp-1">{{ sideTopBanner()?.title }}</h3>
@@ -100,7 +146,7 @@ import { Category, Product } from '../../models/product.model';
             <!-- Card Bottom -->
             <a [routerLink]="sideBottomBanner()?.targetUrl || '/products'" class="border-0 rounded-2xl relative overflow-hidden block shadow-sm hover:shadow-md transition-all group min-h-[190px] h-full bg-transparent">
               <img *ngIf="sideBottomBanner()?.imageUrl" [src]="sideBottomBanner()?.imageUrl" [alt]="sideBottomBanner()?.title || 'Banner Side Bottom'" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl" />
-              
+
               <div *ngIf="sideBottomBanner()?.showOverlay && sideBottomBanner()?.imageUrl" class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent p-4 flex flex-col justify-end text-white animate-fade-in pointer-events-none rounded-2xl">
                 <span class="text-amber-400 font-bold text-xs tracking-wider uppercase drop-shadow-xs">{{ sideBottomBanner()?.subtitle || 'KHUYẾN MÃI KHỦNG' }}</span>
                 <h3 class="text-base font-black text-white mt-0.5 drop-shadow-md leading-tight line-clamp-1">{{ sideBottomBanner()?.title }}</h3>
@@ -121,7 +167,7 @@ import { Category, Product } from '../../models/product.model';
         <section *ngIf="blk.type === 'USP_BAR'" class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             <div *ngFor="let usp of builderService.usps(); let idx = index" class="flex items-center gap-3.5 pt-2 md:pt-0 md:px-2 group">
-              <div 
+              <div
                 [ngClass]="{
                   'bg-red-50 text-[#E30019] group-hover:bg-[#E30019]': idx === 0,
                   'bg-amber-50 text-amber-600 group-hover:bg-amber-500': idx === 1,
@@ -151,13 +197,15 @@ import { Category, Product } from '../../models/product.model';
           </div>
 
           <div class="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-7 gap-3">
-            <a 
-              *ngFor="let cat of quickCategories" 
-              [routerLink]="['/products']" 
+            <a
+              *ngFor="let cat of categories()"
+              [routerLink]="['/products']"
               [queryParams]="{ category: cat.slug }"
               class="bg-white border border-slate-200/80 hover:border-[#E30019] rounded-2xl p-3 flex flex-col items-center justify-center text-center transition-all group hover:shadow-md cursor-pointer">
               <div class="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-red-50 flex items-center justify-center text-2xl mb-2 transition-transform group-hover:scale-110 shadow-xs">
-                {{ cat.icon }}
+                <img *ngIf="isImageUrl(cat.icon)" [src]="cat.icon" [alt]="cat.name" class="w-7 h-7 object-contain" />
+                <i *ngIf="!isImageUrl(cat.icon) && isIconClass(cat.icon)" [class]="cat.icon" class="text-[#E30019] text-xl"></i>
+                <span *ngIf="!isImageUrl(cat.icon) && !isIconClass(cat.icon)">{{ cat.icon || '🏷️' }}</span>
               </div>
               <span class="text-xs font-bold text-slate-800 group-hover:text-[#E30019] line-clamp-1">
                 {{ cat.name }}
@@ -185,42 +233,63 @@ import { Category, Product } from '../../models/product.model';
               </div>
 
               <!-- Countdown Timer -->
-              <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 px-4 py-2 rounded-2xl">
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 px-4 py-2 rounded-2xl">
                 <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">KẾT THÚC SAU:</span>
-                <div class="flex items-center gap-1 font-mono font-black text-sm">
-                  <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().hours }}</span>
-                  <span>:</span>
-                  <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().minutes }}</span>
-                  <span>:</span>
-                  <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().seconds }}</span>
+                  <div class="flex items-center gap-1 font-mono font-black text-sm">
+                    <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().hours }}</span>
+                    <span>:</span>
+                    <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().minutes }}</span>
+                    <span>:</span>
+                    <span class="bg-[#E30019] text-white px-2 py-1 rounded-lg">{{ countdown().seconds }}</span>
+                  </div>
+                  <span class="hidden lg:inline text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    {{ countdown().hasDays ? 'Ngày : Giờ : Phút' : 'Giờ : Phút : Giây' }}
+                  </span>
+                </div>
+                <div class="hidden md:flex items-center gap-2">
+                  <button
+                    type="button"
+                    (click)="scrollFlashSale('left', $event)"
+                    class="w-8 h-8 rounded-full bg-white/10 text-white border border-white/15 shadow-sm flex items-center justify-center hover:bg-[#E30019] hover:border-[#E30019] transition-colors">
+                    <i class="pi pi-chevron-left text-[10px]"></i>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="scrollFlashSale('right', $event)"
+                    class="w-8 h-8 rounded-full bg-white/10 text-white border border-white/15 shadow-sm flex items-center justify-center hover:bg-[#E30019] hover:border-[#E30019] transition-colors">
+                    <i class="pi pi-chevron-right text-[10px]"></i>
+                  </button>
                 </div>
               </div>
             </div>
 
-            <!-- Flash Sale Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              <div 
-                *ngFor="let p of flashSaleDisplayProducts(); let idx = index" 
+            <!-- Flash Sale Slider: 1 row -->
+            <div class="relative group/slider">
+              <div #flashSaleScroller class="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory px-1 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                *ngFor="let p of flashSaleDisplayProducts(); let idx = index"
+                data-flash-sale-card
                 [routerLink]="['/products', p.slug]"
-                class="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl transition-all group cursor-pointer text-slate-900 relative">
-                
+                class="bg-white border border-slate-200 rounded-3xl p-4 flex flex-col justify-between hover:border-red-500 hover:shadow-xl hover:-translate-y-0.5 transition-all group cursor-pointer text-slate-900 relative shrink-0 basis-[220px] sm:basis-[calc((100%_-_1rem)/2)] lg:basis-[calc((100%_-_3rem)/4)] 2xl:basis-[calc((100%_-_4rem)/5)] min-h-[390px] snap-start">
+
                 <div class="relative">
-                  <div class="w-full h-36 rounded-xl bg-slate-50 overflow-hidden flex items-center justify-center mb-3">
-                    <img [src]="p.thumbnail" [alt]="p.name" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-500" />
+                  <div class="w-full h-36 rounded-2xl bg-slate-50 overflow-hidden flex items-center justify-center mb-4">
+                    <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-110 transition-transform duration-500" />
                   </div>
 
                   <span class="absolute top-1 right-1 bg-red-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md shadow">
                     🔥 GIÁ SỐC
                   </span>
 
-                  <div class="text-xs font-bold text-slate-800 line-clamp-2 min-h-[32px]">
+                  <div class="text-xs font-black text-slate-950 line-clamp-2 min-h-[40px] leading-snug">
                     {{ p.name }}
                   </div>
                 </div>
 
-                <div class="mt-3 pt-2 border-t border-slate-100 space-y-2">
+                <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
                   <div>
-                    <div class="text-sm font-black text-red-600">
+                    <div class="text-base font-black text-[#E30019]">
                       {{ (p.flashSalePrice || p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ
                     </div>
                     <div *ngIf="p.originalPrice && p.originalPrice > (p.flashSalePrice || p.promotionPrice)" class="text-[10px] text-slate-400 line-through">
@@ -236,21 +305,22 @@ import { Category, Product } from '../../models/product.model';
                       </span>
                       <span class="text-slate-400">Còn {{ getRemainingCount(idx, p) }} suất</span>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div 
-                        class="bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 h-full rounded-full transition-all duration-500" 
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden shadow-inner">
+                      <div
+                        class="bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 h-full rounded-full transition-all duration-500"
                         [style.width.%]="getSoldPercentage(idx, p)">
                       </div>
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     (click)="onAddToCart(p, $event)"
-                    class="w-full bg-slate-900 hover:bg-red-600 text-white font-bold text-xs py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow">
+                    class="w-full bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs py-2.5 rounded-2xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow">
                     <i class="pi pi-shopping-cart text-xs"></i>
                     <span>THÊM VÀO GIỎ</span>
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -265,7 +335,7 @@ import { Category, Product } from '../../models/product.model';
 
             <!-- SYSTEM TABS -->
             <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
-              <button 
+              <button
                 (click)="activeFeaturedTab.set('BEST_SELLER')"
                 [ngClass]="{
                   'bg-[#E30019] text-white shadow-md font-black': activeFeaturedTab() === 'BEST_SELLER',
@@ -275,7 +345,7 @@ import { Category, Product } from '../../models/product.model';
                 <span>🔥 Bán Chạy Nhất</span>
               </button>
 
-              <button 
+              <button
                 (click)="activeFeaturedTab.set('NEW_ARRIVALS')"
                 [ngClass]="{
                   'bg-[#E30019] text-white shadow-md font-black': activeFeaturedTab() === 'NEW_ARRIVALS',
@@ -285,7 +355,7 @@ import { Category, Product } from '../../models/product.model';
                 <span>✨ Hàng Mới Về</span>
               </button>
 
-              <button 
+              <button
                 (click)="activeFeaturedTab.set('RECOMMENDED')"
                 [ngClass]="{
                   'bg-[#E30019] text-white shadow-md font-black': activeFeaturedTab() === 'RECOMMENDED',
@@ -298,27 +368,27 @@ import { Category, Product } from '../../models/product.model';
           </div>
 
           <!-- Featured Products Grid -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            <div 
-              *ngFor="let p of displayedFeaturedProducts()" 
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            <div
+              *ngFor="let p of displayedFeaturedProducts()"
               [routerLink]="['/products', p.slug]"
-              class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:shadow-xl hover:border-red-500 transition-all group cursor-pointer text-slate-900">
-              
+              class="bg-white border border-red-500/80 rounded-3xl p-4 flex flex-col justify-between hover:shadow-xl hover:-translate-y-0.5 transition-all group cursor-pointer text-slate-900 h-full min-h-[380px]">
+
               <div>
-                <div class="w-full h-44 rounded-xl bg-slate-50 overflow-hidden flex items-center justify-center mb-3">
-                  <img [src]="p.thumbnail" [alt]="p.name" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                <div class="w-full h-44 rounded-2xl bg-slate-50 overflow-hidden flex items-center justify-center mb-4">
+                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" loading="lazy" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
                 </div>
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{{ p.brand?.name || 'TechZone Official' }}</span>
-                <h3 class="text-xs font-bold text-slate-800 line-clamp-2 mt-0.5 min-h-[32px]">{{ p.name }}</h3>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{{ p.brand?.name || 'TechZone Official' }}</span>
+                <h3 class="text-xs font-black text-slate-950 line-clamp-2 mt-1 min-h-[32px] leading-snug">{{ p.name }}</h3>
               </div>
 
-              <div class="mt-3 pt-2 border-t border-slate-100">
-                <div class="text-sm font-black text-red-600">
+              <div class="mt-3 pt-3 border-t border-slate-100">
+                <div class="text-base font-black text-[#E30019]">
                   {{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ
                 </div>
-                <button 
+                <button
                   (click)="onAddToCart(p, $event)"
-                  class="w-full mt-2 bg-slate-900 hover:bg-red-600 text-white font-bold text-xs py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                  class="w-full mt-3 bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs py-2.5 rounded-2xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
                   <i class="pi pi-shopping-cart text-xs"></i>
                   <span>THÊM VÀO GIỎ</span>
                 </button>
@@ -342,7 +412,7 @@ import { Category, Product } from '../../models/product.model';
 
             <!-- Quick Filters Pills -->
             <div class="flex items-center gap-1.5 flex-wrap text-xs font-bold">
-              <button 
+              <button
                 *ngFor="let filterItem of getShelfData(blk.shelfId)?.subFilters || []"
                 (click)="setShelfActiveFilter(blk.shelfId, filterItem)"
                 [ngClass]="{
@@ -355,21 +425,22 @@ import { Category, Product } from '../../models/product.model';
             </div>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div 
-              *ngFor="let p of getFilteredShelfProducts(blk.shelfId)" 
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div
+              *ngFor="let p of getFilteredShelfProducts(blk.shelfId)"
               [routerLink]="['/products', p.slug]"
-              class="border border-slate-100 hover:border-red-500 rounded-2xl p-3 flex flex-col justify-between hover:shadow-lg transition-all group cursor-pointer">
+              class="border border-red-500/80 rounded-3xl p-3 flex flex-col justify-between hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-pointer bg-white h-full min-h-[330px]">
               <div>
-                <div class="w-full h-36 rounded-xl bg-slate-50 flex items-center justify-center mb-2 overflow-hidden">
-                  <img [src]="p.thumbnail" [alt]="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                <div class="w-full h-36 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 overflow-hidden">
+                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
                 </div>
-                <h4 class="text-xs font-bold text-slate-800 line-clamp-2 min-h-[32px]">{{ p.name }}</h4>
+                <h4 class="text-xs font-black text-slate-950 line-clamp-2 min-h-[32px] leading-snug">{{ p.name }}</h4>
               </div>
-              <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span class="text-xs font-black text-red-600">{{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ</span>
-                <button (click)="onAddToCart(p, $event)" class="w-8 h-8 rounded-xl bg-slate-900 hover:bg-red-600 text-white flex items-center justify-center text-xs">
-                  <i class="pi pi-plus"></i>
+              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-sm font-black text-[#E30019]">{{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ</span>
+                <button (click)="onAddToCart(p, $event)" class="bg-slate-950 hover:bg-[#E30019] text-white font-black text-[11px] px-4 h-10 rounded-2xl flex items-center justify-center gap-1.5 transition-colors">
+                  <i class="pi pi-shopping-cart text-xs"></i>
+                  <span>THÊM VÀO GIỎ</span>
                 </button>
               </div>
             </div>
@@ -388,8 +459,8 @@ import { Category, Product } from '../../models/product.model';
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div 
-              *ngFor="let article of activeHomepageBlogs()" 
+            <div
+              *ngFor="let article of activeHomepageBlogs()"
               class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden hover:shadow-xl transition-all group cursor-pointer flex flex-col justify-between">
               <div>
                 <div class="h-44 w-full overflow-hidden relative">
@@ -428,8 +499,8 @@ import { Category, Product } from '../../models/product.model';
           </div>
 
           <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-center pt-2">
-            <div 
-              *ngFor="let brand of activeHomepageBrands()" 
+            <div
+              *ngFor="let brand of activeHomepageBrands()"
               class="bg-slate-50 border border-slate-100 hover:border-red-500/30 rounded-2xl p-3 flex items-center justify-center h-14 hover:shadow-md transition-all group cursor-pointer">
               <span class="font-black text-xs sm:text-sm text-slate-700 group-hover:text-[#E30019] tracking-wider uppercase">
                 {{ brand.name }}
@@ -444,9 +515,13 @@ import { Category, Product } from '../../models/product.model';
   `
 })
 export class HomeComponent implements OnInit, OnDestroy {
+  @ViewChild('flashSaleScroller') flashSaleScroller?: ElementRef<HTMLDivElement>;
+  readonly productPlaceholder = 'assets/placeholder-product.svg';
+
   categories = signal<Category[]>([]);
   flashSaleProducts = signal<Product[]>([]);
   featuredProducts = signal<Product[]>([]);
+  cartToast = signal<{ type: 'success' | 'error'; title: string; message: string; product?: Product } | null>(null);
 
   // Banners Signals
   heroBanners = signal<Banner[]>([]);
@@ -479,10 +554,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     { name: 'Linh Kiện PC', icon: '🧩', slug: 'linh-kien' }
   ];
 
-  countdown = signal({ hours: '24', minutes: '00', seconds: '00' });
+  countdown = signal({ hours: '24', minutes: '00', seconds: '00', hasDays: false });
   private targetEndTime: number = Date.now() + 24 * 3600 * 1000;
   private timerSubscription?: Subscription;
   private autoSlideSubscription?: Subscription;
+  private flashSaleAutoSlideSubscription?: Subscription;
 
   // Active Sorted Blocks computed from HomepageBuilderService
   activeSortedBlocks = computed(() => {
@@ -537,6 +613,49 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.currentBannerIndex.set(next);
   }
 
+  scrollFlashSale(direction: 'left' | 'right', event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.slideFlashSale(direction);
+  }
+
+  private slideFlashSale(direction: 'left' | 'right' = 'right'): void {
+    const scroller = this.flashSaleScroller?.nativeElement;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+
+    const firstCard = scroller.querySelector<HTMLElement>('[data-flash-sale-card]');
+    const gap = 16;
+    const step = (firstCard?.offsetWidth || 260) + gap;
+    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth - 4;
+
+    if (direction === 'right' && scroller.scrollLeft >= maxScrollLeft) {
+      scroller.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (direction === 'left' && scroller.scrollLeft <= 4) {
+      scroller.scrollTo({ left: scroller.scrollWidth, behavior: 'smooth' });
+      return;
+    }
+
+    scroller.scrollBy({
+      left: direction === 'left' ? -step : step,
+      behavior: 'smooth'
+    });
+  }
+
+  getProductImage(product?: Product | null): string {
+    const thumbnail = product?.thumbnail?.trim();
+    return thumbnail ? thumbnail : this.productPlaceholder;
+  }
+
+  onProductImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.endsWith(this.productPlaceholder)) {
+      img.src = this.productPlaceholder;
+    }
+  }
+
   isFlashSaleActive(): boolean {
     const camp = this.currentCampaign();
     if (!camp || camp.isActive === false) return false;
@@ -584,7 +703,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   getSoldPercentage(index: number, product?: any): number {
     if (product && product.quantityLimit) {
       const sold = product.soldCount !== undefined ? product.soldCount : Math.min(product.quantityLimit - 1, (index + 7) % product.quantityLimit);
-      return Math.min(100, Math.round((sold / product.quantityLimit) * 100));
+      const percent = Math.round((sold / product.quantityLimit) * 100);
+      return sold > 0 ? Math.min(100, Math.max(8, percent)) : 0;
     }
     const baseSold = [14, 18, 9, 22, 15, 12, 19, 8];
     const baseRemaining = [3, 2, 5, 1, 4, 6, 2, 7];
@@ -611,7 +731,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Dynamic Product Shelves Helper Methods
   getShelfData(shelfId?: string): ProductShelf | undefined {
     if (!shelfId) return undefined;
-    return this.builderService.shelves().find(s => s.id === shelfId);
+    return this.builderService.shelves().find(s => s.id === shelfId && s.active !== false);
   }
 
   getShelfActiveFilter(shelfId?: string): string {
@@ -629,29 +749,37 @@ export class HomeComponent implements OnInit, OnDestroy {
   getFilteredShelfProducts(shelfId?: string): Product[] {
     const shelf = this.getShelfData(shelfId);
     const list = this.featuredProducts();
-    if (!shelf) return list.slice(0, 4);
+    if (!shelf || shelf.active === false || !shelf.categorySlug) return [];
 
     const activeFilter = this.getShelfActiveFilter(shelfId);
     const targetSlug = shelf.categorySlug.toLowerCase();
 
-    const categoryProducts = list.filter(p => 
-      p.category?.slug?.toLowerCase() === targetSlug || 
-      p.name.toLowerCase().includes(targetSlug.replace('-', ' '))
+    const categoryProducts = list.filter(p =>
+      p.category?.slug?.toLowerCase() === targetSlug ||
+      p.category?.id?.toString() === targetSlug
     );
 
-    const baseList = categoryProducts.length > 0 ? categoryProducts : list;
+    const baseList = categoryProducts;
 
-    if (activeFilter === 'Tất cả') return baseList.slice(0, 4);
-    return baseList.filter(p => 
-      p.name.toLowerCase().includes(activeFilter.toLowerCase()) || 
+    if (activeFilter === 'Tất cả') return baseList.slice(0, 5);
+    return baseList.filter(p =>
+      p.name.toLowerCase().includes(activeFilter.toLowerCase()) ||
       (p.brand && p.brand.name.toLowerCase().includes(activeFilter.toLowerCase()))
-    ).slice(0, 4);
+    ).slice(0, 5);
   }
 
   onAddToCart(product: Product, event: Event): void {
     event.stopPropagation();
     event.preventDefault();
-    this.cartService.addToCart(product).subscribe();
+    this.cartService.addToCart(product).subscribe({
+      next: () => this.showCartToast('success', 'Đã thêm vào giỏ hàng', 'Sản phẩm đã được thêm thành công.', product),
+      error: () => this.showCartToast('error', 'Không thể thêm vào giỏ', 'Vui lòng thử lại sau.')
+    });
+  }
+
+  private showCartToast(type: 'success' | 'error', title: string, message: string, product?: Product): void {
+    this.cartToast.set({ type, title, message, product });
+    setTimeout(() => this.cartToast.set(null), 5000);
   }
 
   ngOnInit(): void {
@@ -686,7 +814,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
 
     // Fetch Products & Categories
-    this.productService.getCategories().subscribe(res => this.categories.set(res));
+    this.productService.getHomepageCategories().subscribe(res => this.categories.set(res));
     this.productService.getFlashSaleProducts().subscribe(res => this.flashSaleProducts.set(res));
     this.productService.getFeaturedProducts().subscribe(res => this.featuredProducts.set(res));
 
@@ -694,15 +822,47 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.timerSubscription = interval(1000).subscribe(() => {
       const now = new Date().getTime();
       const diff = Math.max(0, Math.floor((this.targetEndTime - now) / 1000));
-      const h = Math.floor(diff / 3600);
+      const days = Math.floor(diff / 86400);
+      const h = Math.floor((diff % 86400) / 3600);
       const m = Math.floor((diff % 3600) / 60);
       const s = diff % 60;
-      this.countdown.set({
-        hours: h < 10 ? '0' + h : '' + h,
-        minutes: m < 10 ? '0' + m : '' + m,
-        seconds: s < 10 ? '0' + s : '' + s
-      });
+      const pad = (value: number) => value < 10 ? '0' + value : '' + value;
+      if (days > 0) {
+        this.countdown.set({
+          hours: '' + days,
+          minutes: pad(h),
+          seconds: pad(m),
+          hasDays: true
+        });
+      } else {
+        this.countdown.set({
+          hours: pad(h),
+          minutes: pad(m),
+          seconds: pad(s),
+          hasDays: false
+        });
+      }
     });
+
+    this.flashSaleAutoSlideSubscription = interval(5000).subscribe(() => {
+      this.slideFlashSale('right');
+    });
+  }
+
+  isImageUrl(icon?: string): boolean {
+    if (!icon) return false;
+    const str = icon.trim();
+    return str.startsWith('http://') ||
+           str.startsWith('https://') ||
+           str.startsWith('data:image/') ||
+           str.startsWith('/') ||
+           str.startsWith('assets/') ||
+           /\.(svg|png|jpg|jpeg|webp)$/i.test(str);
+  }
+
+  isIconClass(icon?: string): boolean {
+    if (!icon) return false;
+    return icon.startsWith('pi ') || icon.startsWith('fa-');
   }
 
   ngOnDestroy(): void {
@@ -711,6 +871,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
     if (this.autoSlideSubscription) {
       this.autoSlideSubscription.unsubscribe();
+    }
+    if (this.flashSaleAutoSlideSubscription) {
+      this.flashSaleAutoSlideSubscription.unsubscribe();
     }
   }
 }

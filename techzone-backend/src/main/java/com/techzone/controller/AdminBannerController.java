@@ -13,7 +13,7 @@ import java.util.List;
 @RequestMapping("/api/admin/banners")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminBannerController {
 
     private final BannerService bannerService;

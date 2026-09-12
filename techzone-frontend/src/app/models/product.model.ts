@@ -5,6 +5,9 @@ export interface Category {
   icon?: string;
   parentId?: number;
   priority?: number;
+  isActive?: boolean;
+  showInNavbar?: boolean;
+  showOnHomepage?: boolean;
 }
 
 export interface Brand {

@@ -453,7 +453,7 @@ import { AdminHeaderComponent } from '../../../components/admin-header/admin-hea
               <div class="space-y-2">
                 <div *ngFor="let item of selectedOrder().items" class="flex items-center justify-between p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs shadow-2xs">
                   <div class="flex items-center gap-3">
-                    <img [src]="item.product?.thumbnail || 'assets/placeholder.png'" [alt]="item.productName" class="w-12 h-12 object-contain rounded-xl bg-slate-900 border border-slate-800 p-1 shrink-0" />
+                    <img [src]="item.productThumbnail || item.product?.thumbnail || 'assets/placeholder.png'" [alt]="item.productName" class="w-12 h-12 object-contain rounded-xl bg-slate-900 border border-slate-800 p-1 shrink-0" />
                     <div>
                       <span class="font-bold text-white text-xs block line-clamp-1">{{ item.productName }}</span>
                       <span class="text-[11px] text-slate-400 font-mono">Đơn giá: {{ item.price | number:'1.0-0' }}đ &times; <strong class="text-red-400 font-black">{{ item.quantity }}</strong></span>

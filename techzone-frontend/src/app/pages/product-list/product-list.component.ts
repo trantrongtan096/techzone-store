@@ -12,6 +12,38 @@ import { Brand, Category, Product } from '../../models/product.model';
   imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="max-w-7xl mx-auto px-4 py-8">
+      <div
+        *ngIf="cartToast()"
+        class="fixed top-24 right-6 z-[100] w-[360px] max-w-[calc(100vw-32px)] bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+        <div class="p-4 flex items-start gap-3">
+          <div [class]="cartToast()?.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'" class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0">
+            <i [class]="cartToast()?.type === 'success' ? 'pi pi-check-circle text-lg' : 'pi pi-exclamation-triangle text-lg'"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-black">{{ cartToast()?.title }}</div>
+            <div class="mt-2 flex gap-3">
+              <img *ngIf="cartToast()?.product" [src]="getProductImage(cartToast()?.product)" (error)="onProductImageError($event)" [alt]="cartToast()?.product?.name" class="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 object-contain p-1 shrink-0" />
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-slate-800 line-clamp-2">{{ cartToast()?.product?.name || cartToast()?.message }}</div>
+                <div *ngIf="cartToast()?.product" class="mt-1 text-sm font-black text-[#E30019]">
+                  {{ ((cartToast()?.product?.promotionPrice || cartToast()?.product?.originalPrice) || 0) | number:'1.0-0' }}đ
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" (click)="cartToast.set(null)" class="text-slate-400 hover:text-slate-700 cursor-pointer">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 px-4 pb-4">
+          <a routerLink="/cart" (click)="cartToast.set(null)" class="text-center bg-slate-950 hover:bg-[#E30019] text-white text-xs font-black py-2.5 rounded-2xl transition-colors">
+            XEM GIỎ HÀNG
+          </a>
+          <button type="button" (click)="cartToast.set(null)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-2.5 rounded-2xl transition-colors cursor-pointer">
+            TIẾP TỤC MUA
+          </button>
+        </div>
+      </div>
       <div class="space-y-6 animate-fade-in">
       <!-- Title & Breadcrumb Bar -->
       <div class="flex items-center justify-between border-b border-gray-200 pb-4">
@@ -129,8 +161,8 @@ import { Brand, Category, Product } from '../../models/product.model';
           </div>
 
           <!-- Product Grid -->
-          <div *ngIf="products().length > 0; else emptyState" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            <div *ngFor="let p of products()" class="tech-card p-4 flex flex-col justify-between group relative bg-white border border-gray-100 rounded-lg">
+          <div *ngIf="products().length > 0; else emptyState" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
+            <div *ngFor="let p of products()" class="p-5 flex flex-col justify-between group relative bg-white border border-red-500/80 rounded-3xl hover:shadow-xl hover:-translate-y-0.5 transition-all h-full min-h-[430px]">
               <!-- Discount Badge -->
               <span *ngIf="p.discountPercentage" class="absolute top-3 left-3 z-10 bg-[#E30019] text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow">
                 -{{ p.discountPercentage }}%
@@ -138,21 +170,21 @@ import { Brand, Category, Product } from '../../models/product.model';
 
               <div>
                 <!-- Thumbnail -->
-                <a [routerLink]="['/products', p.slug]" class="block relative overflow-hidden rounded-md bg-slate-50 aspect-video mb-3">
-                  <img [src]="p.thumbnail" [alt]="p.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <a [routerLink]="['/products', p.slug]" class="block relative overflow-hidden rounded-2xl bg-slate-50 h-52 mb-4">
+                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 p-3" />
                 </a>
 
                 <!-- Brand & Name -->
-                <span class="text-[10px] font-bold text-[#E30019] uppercase tracking-widest block">{{ p.brand?.name }}</span>
-                <h3 class="text-xs font-bold text-gray-800 line-clamp-2 hover:text-[#E30019] transition-colors mt-1 leading-tight">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{{ p.brand?.name || 'TechZone' }}</span>
+                <h3 class="text-sm font-black text-slate-950 line-clamp-2 hover:text-[#E30019] transition-colors mt-1 leading-snug min-h-[40px]">
                   <a [routerLink]="['/products', p.slug]">{{ p.name }}</a>
                 </h3>
               </div>
 
               <!-- Price & Add to Cart -->
-              <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+              <div class="mt-4 pt-3 border-t border-gray-100 space-y-3">
                 <div>
-                  <div class="text-sm font-black text-[#E30019]">
+                  <div class="text-lg font-black text-[#E30019]">
                     {{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ
                   </div>
                   <div *ngIf="p.originalPrice && p.promotionPrice" class="text-[10px] text-slate-400 line-through">
@@ -162,8 +194,9 @@ import { Brand, Category, Product } from '../../models/product.model';
 
                 <button 
                   (click)="addToCart(p, $event)"
-                  class="bg-[#E30019] hover:bg-red-700 text-white p-2.5 rounded-xl transition-colors shadow cursor-pointer">
+                  class="w-full bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs py-2.5 rounded-2xl transition-colors shadow cursor-pointer flex items-center justify-center gap-1.5">
                   <i class="pi pi-shopping-cart text-xs"></i>
+                  <span>THÊM VÀO GIỎ</span>
                 </button>
               </div>
             </div>
@@ -184,9 +217,12 @@ import { Brand, Category, Product } from '../../models/product.model';
   `
 })
 export class ProductListComponent implements OnInit {
+  readonly productPlaceholder = 'assets/placeholder-product.svg';
+
   categories = signal<Category[]>([]);
   brands = signal<Brand[]>([]);
   products = signal<Product[]>([]);
+  cartToast = signal<{ type: 'success' | 'error'; title: string; message: string; product?: Product } | null>(null);
 
   searchQuery: string = '';
   selectedCategoryId = signal<number | undefined>(undefined);
@@ -225,6 +261,18 @@ export class ProductListComponent implements OnInit {
       .replace(/[^a-z0-9\s-]/g, '')
       .trim()
       .replace(/\s+/g, '-');
+  }
+
+  getProductImage(product?: Product | null): string {
+    const thumbnail = product?.thumbnail?.trim();
+    return thumbnail ? thumbnail : this.productPlaceholder;
+  }
+
+  onProductImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.endsWith(this.productPlaceholder)) {
+      img.src = this.productPlaceholder;
+    }
   }
 
   private resolveParams(): void {
@@ -320,6 +368,14 @@ export class ProductListComponent implements OnInit {
   addToCart(product: Product, event: Event): void {
     event.stopPropagation();
     event.preventDefault();
-    this.cartService.addToCart(product).subscribe();
+    this.cartService.addToCart(product).subscribe({
+      next: () => this.showCartToast('success', 'Đã thêm vào giỏ hàng', 'Sản phẩm đã được thêm thành công.', product),
+      error: () => this.showCartToast('error', 'Không thể thêm vào giỏ', 'Vui lòng thử lại sau.')
+    });
+  }
+
+  private showCartToast(type: 'success' | 'error', title: string, message: string, product?: Product): void {
+    this.cartToast.set({ type, title, message, product });
+    setTimeout(() => this.cartToast.set(null), 5000);
   }
 }
