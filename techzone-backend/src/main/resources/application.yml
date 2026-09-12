@@ -39,3 +39,10 @@ techzone:
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
+  payment:
+    webhook-secret: ${PAYMENT_WEBHOOK_SECRET}
+    vietqr:
+      bank-bin: ${VIETQR_BANK_BIN:}
+      account-no: ${VIETQR_ACCOUNT_NO:}
+      account-name: ${VIETQR_ACCOUNT_NAME:TECHZONE}
+      template: ${VIETQR_TEMPLATE:compact2}

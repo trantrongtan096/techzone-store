@@ -32,4 +32,12 @@ public class Category {
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "show_in_navbar")
+    @Builder.Default
+    private Boolean showInNavbar = false;
+
+    @Column(name = "show_on_homepage")
+    @Builder.Default
+    private Boolean showOnHomepage = false;
 }

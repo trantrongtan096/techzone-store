@@ -13,3 +13,10 @@ techzone:
   jwt:
     secret: replace-with-a-long-random-secret-at-least-32-characters
     expiration-ms: 86400000
+  payment:
+    webhook-secret: replace-with-a-long-random-webhook-secret
+    vietqr:
+      bank-bin: "970436"
+      account-no: "1234567890"
+      account-name: "TECHZONE STORE"
+      template: compact2

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, Input, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HomeService } from '../../services/home.service';
 
@@ -7,7 +7,7 @@ import { HomeService } from '../../services/home.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <footer class="bg-slate-950 border-t border-slate-800 text-slate-400 pt-12 pb-8 mt-16">
+    <footer [class.compact-footer]="compact" class="bg-slate-950 border-t border-slate-800 text-slate-400 pt-12 pb-8 mt-16">
       <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
         <!-- Brand Info -->
         <div>
@@ -72,9 +72,17 @@ import { HomeService } from '../../services/home.service';
         © 2026 TechZone E-Commerce Platform. Đã đăng ký bản quyền. Thiết kế đậm chất Gaming & Công nghệ đỉnh cao.
       </div>
     </footer>
-  `
+  `,
+  styles: [`
+    .compact-footer { margin-top: 0; padding: 20px 0 14px; background: #020e1e; }
+    .compact-footer > .grid { margin-bottom: 16px; gap: 24px; }
+    .compact-footer h4 { margin-bottom: 10px; font-size: 12px; letter-spacing: .025em; }
+    .compact-footer .border-t { padding-top: 12px; font-size: 10px; }
+    .compact-footer li { line-height: 1.4; }
+  `]
 })
 export class FooterComponent implements OnInit {
+  @Input() compact = false;
   showrooms = signal<any[]>([]);
   settings: Record<string, string> = {};
 

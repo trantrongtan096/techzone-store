@@ -25,12 +25,30 @@ export interface Order {
   createdAt: string;
 }
 
+export interface PaymentTransaction {
+  id: number;
+  provider: string;
+  method: string;
+  amount: number;
+  status: string;
+  reference: string;
+  paymentUrl?: string;
+  gatewayTransactionId?: string;
+  failureReason?: string;
+  processedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CheckoutRequest {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
   shippingAddress: string;
   paymentMethod?: string;
+  shippingFee?: number;
+  discountAmount?: number;
+  voucherCode?: string;
   note?: string;
   sessionId?: string;
 }

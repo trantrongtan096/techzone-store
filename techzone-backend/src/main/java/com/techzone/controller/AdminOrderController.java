@@ -1,5 +1,6 @@
 package com.techzone.controller;
 
+import com.techzone.dto.AdminOrderResponse;
 import com.techzone.entity.Order;
 import com.techzone.repository.OrderRepository;
 import com.techzone.service.OrderService;
@@ -15,21 +16,25 @@ import java.util.List;
 @RequestMapping("/api/admin/orders")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminOrderController {
 
     private final OrderRepository orderRepository;
     private final OrderService orderService;
 
     @GetMapping
-    public ResponseEntity<List<Order>> getAllOrders() {
-        return ResponseEntity.ok(orderRepository.findAllByOrderByCreatedAtDesc());
+    public ResponseEntity<List<AdminOrderResponse>> getAllOrders() {
+        List<AdminOrderResponse> orders = orderRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(AdminOrderResponse::from)
+                .toList();
+        return ResponseEntity.ok(orders);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Order> updateOrderStatus(@PathVariable Long id, @RequestBody OrderStatusRequest req) {
+    public ResponseEntity<AdminOrderResponse> updateOrderStatus(@PathVariable Long id, @RequestBody OrderStatusRequest req) {
         Order updatedOrder = orderService.updateOrderStatus(id, req.getOrderStatus(), req.getPaymentStatus());
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(AdminOrderResponse.from(updatedOrder));
     }
 
     @Data

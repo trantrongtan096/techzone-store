@@ -14,7 +14,7 @@ import java.util.List;
 @RequestMapping("/api/admin/flash-sale")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
 public class AdminFlashSaleController {
 
     private final FlashSaleService flashSaleService;

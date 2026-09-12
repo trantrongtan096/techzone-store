@@ -1,0 +1,8 @@
+techzone:
+  payment:
+    webhook-secret: dev-only-webhook-secret-change-before-production
+    vietqr:
+      bank-bin: MB
+      account-no: "0123456789"
+      account-name: "TECHZONE DEMO"
+      template: compact2

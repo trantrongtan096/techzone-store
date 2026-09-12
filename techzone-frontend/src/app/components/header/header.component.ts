@@ -111,6 +111,9 @@ import { Category, Product } from '../../models/product.model';
                 {{ authService.currentUser()?.fullName?.charAt(0) }}
               </div>
               <span class="text-xs font-bold text-white hidden md:inline">{{ authService.currentUser()?.fullName }}</span>
+              <a routerLink="/account/orders" class="text-xs font-bold text-white/90 hover:text-white hidden lg:inline">
+                Đơn hàng
+              </a>
               <button (click)="authService.logout()" class="text-red-100 hover:text-white text-xs p-1 cursor-pointer" title="Đăng xuất">
                 <i class="pi pi-power-off"></i>
               </button>
@@ -169,7 +172,7 @@ export class HeaderComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.productService.getCategories().subscribe({
+    this.productService.getNavbarCategories().subscribe({
       next: (data) => this.categories.set(data),
       error: () => {}
     });
