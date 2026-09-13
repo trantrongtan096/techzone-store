@@ -18,6 +18,7 @@ public class DataSeeder implements CommandLineRunner {
     private final BrandRepository brandRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final ArticleCategoryRepository articleCategoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
@@ -60,9 +61,20 @@ public class DataSeeder implements CommandLineRunner {
         } catch (Exception ex) {}
 
         seedUsers();
+        seedArticleCategories();
         if (categoryRepository.count() == 0) {
             seedCategoriesAndBrandsAndProducts();
         }
+    }
+
+    private void seedArticleCategories() {
+        if (articleCategoryRepository.count() > 0) return;
+        articleCategoryRepository.saveAll(List.of(
+                ArticleCategory.builder().name("Tư vấn mua sắm").slug("tu-van-mua-sam").active(true).build(),
+                ArticleCategory.builder().name("Review Gear").slug("review-gear").active(true).build(),
+                ArticleCategory.builder().name("Bài viết kỹ thuật").slug("bai-viet-ky-thuat").active(true).build(),
+                ArticleCategory.builder().name("Tin công nghệ").slug("tin-cong-nghe").active(true).build()
+        ));
     }
 
     private void seedUsers() {
