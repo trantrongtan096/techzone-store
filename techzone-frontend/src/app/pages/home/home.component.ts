@@ -5,8 +5,10 @@ import { interval, Subscription } from 'rxjs';
 import { ProductService } from '../../services/product.service';
 import { CartService } from '../../services/cart.service';
 import { HomeService, Banner } from '../../services/home.service';
-import { HomepageBuilderService, ProductShelf } from '../../services/homepage-builder.service';
+import { HomepageBuilderService, BlogArticle, ProductShelf } from '../../services/homepage-builder.service';
+import { ArticleService } from '../../services/article.service';
 import { Brand, Category, Product } from '../../models/product.model';
+import { Article } from '../../models/article.model';
 import { resolveCategoryIcon } from '../../components/icon-picker/category-icon-registry';
 
 @Component({
@@ -470,6 +472,7 @@ import { resolveCategoryIcon } from '../../components/icon-picker/category-icon-
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div
               *ngFor="let article of activeHomepageBlogs()"
+              [routerLink]="['/tin-tuc', article.slug]"
               class="bg-white border border-slate-200/80 rounded-2xl overflow-hidden hover:shadow-xl transition-all group cursor-pointer flex flex-col justify-between">
               <div>
                 <div class="h-44 w-full overflow-hidden relative">
@@ -531,6 +534,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   flashSaleProducts = signal<Product[]>([]);
   featuredProducts = signal<Product[]>([]);
   cartToast = signal<{ type: 'success' | 'error'; title: string; message: string; product?: Product } | null>(null);
+  autoHomepageBlogs = signal<BlogArticle[]>([]);
 
   // Banners Signals
   heroBanners = signal<Banner[]>([]);
@@ -577,17 +581,54 @@ export class HomeComponent implements OnInit, OnDestroy {
   });
 
   activeHomepageBlogs = computed(() => {
-    return this.builderService.blogs().filter(b => b.showOnHomepage);
+    const settings = this.builderService.blogSettings();
+    const sourceBlogs = settings.mode === 'AUTO_LATEST' ? this.autoHomepageBlogs() : this.builderService.blogs();
+    const publishedBlogs = sourceBlogs.filter(blog => this.isBlogPublished(blog));
+    const blogs = [...publishedBlogs].sort((a, b) => {
+      if (settings.mode !== 'AUTO_LATEST') {
+        return (a.displayOrder || 0) - (b.displayOrder || 0);
+      }
+
+      switch (settings.sortType) {
+        case 'MOST_VIEWED':
+          return (b.views || 0) - (a.views || 0);
+        case 'FEATURED':
+          return Number(b.featured || false) - Number(a.featured || false)
+            || this.parseBlogDate(b.date).getTime() - this.parseBlogDate(a.date).getTime();
+        case 'NEWEST':
+        default:
+          return this.parseBlogDate(b.date).getTime() - this.parseBlogDate(a.date).getTime();
+      }
+    });
+    const filtered = settings.mode === 'AUTO_LATEST'
+      ? blogs.filter(blog => settings.category === 'Tất cả' || blog.category === settings.category)
+      : blogs.filter(blog => blog.inManualList !== false && blog.showOnHomepage);
+    return filtered.slice(0, settings.limit);
   });
 
   activeHomepageBrands = computed(() => {
-    return this.builderService.brands().filter(b => b.showOnHomepage);
+    const limit = this.builderService.brandSettings().limit;
+    return [...this.builderService.brands()]
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      .filter(b => b.showOnHomepage)
+      .slice(0, limit);
   });
+
+  private isBlogPublished(blog: { status?: string; published?: boolean }): boolean {
+    if (blog.published === false) return false;
+    return !blog.status || blog.status === 'PUBLISHED';
+  }
+
+  private parseBlogDate(date: string): Date {
+    const [day, month, year] = date.split('/').map(Number);
+    return new Date(year || 1970, (month || 1) - 1, day || 1);
+  }
 
   constructor(
     private productService: ProductService,
     public cartService: CartService,
     private homeService: HomeService,
+    private articleService: ArticleService,
     public builderService: HomepageBuilderService
   ) {
     effect((onCleanup) => {
@@ -855,6 +896,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.productService.getHomepageCategories().subscribe(res => this.categories.set(res));
     this.productService.getFlashSaleProducts().subscribe(res => this.flashSaleProducts.set(res));
     this.productService.getFeaturedProducts().subscribe(res => this.featuredProducts.set(res));
+    this.loadHomepageBlogs();
 
     // Live RxJS Countdown Timer
     this.timerSubscription = interval(1000).subscribe(() => {
@@ -905,6 +947,64 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   categoryIcon(category: Category): string {
     return resolveCategoryIcon(category.icon, category.name, category.slug);
+  }
+
+  private loadHomepageBlogs(): void {
+    this.articleService.getPublicHomepageArticleItems().subscribe({
+      next: items => {
+        this.builderService.blogs.set((items || []).map(item => this.articleToBlogItem(item.article, item.active, item.displayOrder, item.id)));
+      },
+      error: () => this.builderService.blogs.set([])
+    });
+
+    this.articleService.getPublishedArticles(0, 12).subscribe({
+      next: res => this.autoHomepageBlogs.set((res.content || []).map(article => this.articleToBlogItem(article, true))),
+      error: () => this.autoHomepageBlogs.set([])
+    });
+  }
+
+  private articleToBlogItem(article: Article, active = true, displayOrder?: number, homepageItemId?: number): BlogArticle {
+    return {
+      id: article.id,
+      homepageItemId,
+      title: article.title,
+      slug: article.slug,
+      category: article.category?.name || 'Tin công nghệ',
+      date: this.formatArticleDate(article.publishedAt || article.updatedAt || article.createdAt),
+      image: article.thumbnail || this.productPlaceholder,
+      summary: article.excerpt || '',
+      readTime: `${this.calculateArticleReadTime(article)} phút đọc`,
+      showOnHomepage: active,
+      displayOrder,
+      inManualList: true,
+      status: article.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+      published: article.status === 'PUBLISHED'
+    };
+  }
+
+  private formatArticleDate(value?: string): string {
+    if (!value) return new Date().toLocaleDateString('vi-VN');
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('vi-VN');
+  }
+
+  private calculateArticleReadTime(article: Article): number {
+    const text = `${article.title || ''} ${article.excerpt || ''} ${this.articlePlainText(article.content || '')}`.trim();
+    return Math.max(1, Math.ceil(text.split(/\s+/).filter(Boolean).length / 120));
+  }
+
+  private articlePlainText(html?: string | null): string {
+    return (html || '')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   ngOnDestroy(): void {

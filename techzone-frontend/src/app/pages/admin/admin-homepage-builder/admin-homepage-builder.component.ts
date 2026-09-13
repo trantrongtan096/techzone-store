@@ -4,7 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { HomepageBuilderService, HomepageBlock, UspItem, ProductShelf, BlogArticle, BrandItem } from '../../../services/homepage-builder.service';
 import { ProductService } from '../../../services/product.service';
+import { ArticleService } from '../../../services/article.service';
 import { Brand, Category } from '../../../models/product.model';
+import { Article, HomepageArticleItem } from '../../../models/article.model';
 
 import { AdminHeaderComponent } from '../../../components/admin-header/admin-header.component';
 import { resolveCategoryIcon } from '../../../components/icon-picker/category-icon-registry';
@@ -478,62 +480,221 @@ import { resolveCategoryIcon } from '../../../components/icon-picker/category-ic
         </div>
       </div>
 
-      <!-- TAB 4: THƯƠNG HIỆU & BLOG SHOWCASE TOGGLES -->
+      <!-- TAB 4: THUONG HIEU & BLOG SHOWCASE -->
       <div *ngIf="activeTab() === 'BLOGS_BRANDS'" class="space-y-6">
-        <!-- Brands Showcase Section -->
         <div class="bg-[#111827] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <span>🏢 Bật / Tắt Thương Hiệu Đồng Hành Hiển Thị Trang Chủ</span>
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">Tích chọn các hãng công nghệ hiển thị ngoài dải Brand Showcase</p>
+          <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+            <div>
+              <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="pi pi-building text-amber-400"></i>
+                <span>Thương Hiệu Đồng Hành</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">{{ visibleBrandCount() }}/{{ builderService.brands().length }} đang hiển thị • giới hạn {{ brandLimit }} logo</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <div class="relative">
+                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input [(ngModel)]="brandSearchQuery" placeholder="Tìm thương hiệu..." class="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-red-500" />
+              </div>
+              <button (click)="setAllBrands(true)" class="px-3 py-2 bg-slate-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">Hiện tất cả</button>
+              <button (click)="setAllBrands(false)" class="px-3 py-2 bg-slate-800 hover:bg-red-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">Ẩn tất cả</button>
+            </div>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div *ngFor="let b of builderService.brands()" class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
-              <span class="font-black text-xs text-white uppercase tracking-wider">{{ b.name }}</span>
-              <button 
-                (click)="builderService.toggleBrandHomepage(b.id)"
-                [ngClass]="{
-                  'bg-emerald-950 text-emerald-400 border-emerald-500/50': b.showOnHomepage,
-                  'bg-slate-950 text-slate-500 border-slate-800': !b.showOnHomepage
-                }"
-                class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer">
-                {{ b.showOnHomepage ? '🟢 Hiện' : '🔴 Ẩn' }}
+          <div class="flex flex-wrap items-center gap-3 bg-slate-950/70 border border-slate-800 rounded-2xl p-3">
+            <label class="text-xs font-bold text-slate-300 uppercase">Giới hạn hiển thị:</label>
+            <input type="number" min="1" max="24" [(ngModel)]="brandLimit" (change)="saveBrandLimit()" class="w-20 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500" />
+            <span class="text-[11px] text-slate-500">Homepage lấy theo thứ tự từ trên xuống.</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div *ngFor="let b of filteredBrands(); let idx = index" draggable="true" (dragstart)="onBrandDragStart($event, b.id)" (dragover)="onGenericDragOver($event)" (drop)="onBrandDrop($event, b.id)" (dragend)="onBrandDragEnd()" [class.opacity-50]="draggedBrandId() === b.id" class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all">
+              <div class="min-w-0 flex items-center gap-2">
+                <i class="pi pi-bars text-slate-500 cursor-grab" title="Kéo để đổi thứ tự"></i>
+                <span class="text-amber-400 font-black text-xs">#{{ b.displayOrder || idx + 1 }}</span>
+                <span class="font-black text-xs text-white uppercase tracking-wider truncate">{{ b.name }}</span>
+              </div>
+              <button (click)="toggleBrand(b.id)" [ngClass]="{ 'bg-emerald-500/15 border-emerald-500/50': b.showOnHomepage, 'bg-slate-950 border-slate-800': !b.showOnHomepage }" class="h-7 px-2 rounded-full border text-[10px] font-black transition-all inline-flex items-center gap-1.5 cursor-pointer shrink-0">
+                <span [class]="b.showOnHomepage ? 'w-2 h-2 rounded-full bg-emerald-400' : 'w-2 h-2 rounded-full bg-slate-600'"></span>
+                <span [class]="b.showOnHomepage ? 'text-emerald-300' : 'text-slate-400'">{{ b.showOnHomepage ? 'Hiện' : 'Ẩn' }}</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Tech Blog Articles Section -->
         <div class="bg-[#111827] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <span>📰 Bật / Tắt Bài Viết Blog Hiển Thị Ngoài Trang Chủ</span>
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">Chọn các bài viết đánh giá công nghệ xuất hiện ngoài khối Tech Blog</p>
+          <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+            <div>
+              <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="pi pi-newspaper text-slate-300"></i>
+                <span>Tin Tức Công Nghệ</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">Đang hiển thị {{ visibleBlogCount() }}/{{ blogLimit }} bài • {{ blogMode === 'MANUAL' ? 'chọn thủ công' : 'tự động lấy bài mới nhất' }}</p>
+            </div>
+
+            <div *ngIf="blogMode === 'MANUAL'" class="flex flex-col sm:flex-row gap-2">
+              <div class="relative">
+                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input [(ngModel)]="blogSearchQuery" placeholder="Tìm bài viết..." class="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-red-500" />
+              </div>
+              <select [(ngModel)]="blogCategoryFilter" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                <option value="Tất cả">Tất cả chuyên mục</option>
+                <option *ngFor="let category of blogCategories()" [value]="category">{{ category }}</option>
+              </select>
+              <button type="button" (click)="openAddBlogModal()" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl border border-red-500 transition-all inline-flex items-center gap-1.5">
+                <i class="pi pi-plus text-[10px]"></i>
+                Thêm bài viết
+              </button>
+              <button (click)="setAllBlogs(true)" class="px-3 py-2 bg-slate-800 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">Hiện tất cả</button>
+              <button (click)="setAllBlogs(false)" class="px-3 py-2 bg-slate-800 hover:bg-red-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">Ẩn tất cả</button>
+            </div>
           </div>
 
-          <div class="space-y-3">
-            <div *ngFor="let art of builderService.blogs()" class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-4">
-              <div class="flex items-center gap-3">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 bg-slate-950/70 border border-slate-800 rounded-2xl p-3">
+            <div>
+              <div class="text-xs font-bold text-slate-300 uppercase mb-2">Chế độ hiển thị</div>
+              <div class="flex flex-wrap gap-2">
+                <button (click)="setBlogMode('MANUAL')" [ngClass]="blogMode === 'MANUAL' ? 'border-red-500 bg-red-500/10 text-white' : 'border-slate-700 bg-slate-900 text-slate-400'" class="px-3 py-2 rounded-xl border text-xs font-bold transition-all">● Thủ công</button>
+                <button (click)="setBlogMode('AUTO_LATEST')" [ngClass]="blogMode === 'AUTO_LATEST' ? 'border-red-500 bg-red-500/10 text-white' : 'border-slate-700 bg-slate-900 text-slate-400'" class="px-3 py-2 rounded-xl border text-xs font-bold transition-all">○ Tự động lấy bài mới nhất</button>
+              </div>
+            </div>
+
+            <div *ngIf="blogMode === 'AUTO_LATEST'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label class="text-xs font-bold text-slate-300 uppercase">Số bài
+                <input type="number" min="1" max="12" [(ngModel)]="blogLimit" (change)="saveBlogSettings()" class="block mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-red-500" />
+              </label>
+              <label class="text-xs font-bold text-slate-300 uppercase">Chuyên mục
+                <select [(ngModel)]="blogAutoCategory" (change)="saveBlogSettings()" class="block mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500">
+                  <option value="Tất cả">Tất cả</option>
+                  <option *ngFor="let category of blogCategories()" [value]="category">{{ category }}</option>
+                </select>
+              </label>
+              <label class="text-xs font-bold text-slate-300 uppercase">Sắp xếp
+                <select [(ngModel)]="blogAutoSort" (change)="saveBlogSettings()" class="block mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500">
+                  <option value="NEWEST">Mới nhất</option>
+                  <option value="MOST_VIEWED">Nhiều lượt xem</option>
+                  <option value="FEATURED">Bài nổi bật</option>
+                </select>
+              </label>
+              <label class="sm:col-span-3 flex items-center gap-2 text-xs font-bold text-slate-300">
+                <input type="checkbox" checked disabled class="accent-red-600" />
+                Chỉ lấy bài đã xuất bản
+              </label>
+            </div>
+
+            <div *ngIf="blogMode === 'MANUAL'" class="flex items-center text-xs text-slate-400">
+              Kéo thả để đổi thứ tự. Toggle từng bài để quyết định bài nào xuất hiện ngoài trang chủ.
+            </div>
+          </div>
+
+          <div *ngIf="blogMode === 'MANUAL'" class="space-y-3">
+            <div *ngFor="let art of filteredBlogs(); let idx = index" draggable="true" (dragstart)="onBlogDragStart($event, art.id)" (dragover)="onGenericDragOver($event)" (drop)="onBlogDrop($event, art.id)" (dragend)="onBlogDragEnd()" [class.opacity-50]="draggedBlogId() === art.id" class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-4 hover:border-slate-700 transition-all">
+              <div class="flex items-center gap-3 min-w-0">
+                <i class="pi pi-bars text-slate-500 cursor-grab" title="Kéo để đổi thứ tự"></i>
+                <span class="text-amber-400 font-black text-xs w-8">#{{ art.displayOrder || idx + 1 }}</span>
                 <img [src]="art.image" class="w-12 h-12 rounded-xl object-cover" />
-                <div>
+                <div class="min-w-0">
                   <h4 class="text-xs font-bold text-white line-clamp-1">{{ art.title }}</h4>
                   <span class="text-[10px] text-amber-400 font-bold uppercase">{{ art.category }} • {{ art.date }}</span>
                 </div>
               </div>
-
-              <button 
-                (click)="builderService.toggleBlogHomepage(art.id)"
-                [ngClass]="{
-                  'bg-emerald-950 text-emerald-400 border-emerald-500/50': art.showOnHomepage,
-                  'bg-slate-950 text-slate-500 border-slate-800': !art.showOnHomepage
-                }"
-                class="px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0">
-                {{ art.showOnHomepage ? '🟢 Hiện Trang Chủ' : '🔴 Ẩn Trang Chủ' }}
-              </button>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" (click)="previewBlog(art)" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700">Xem trước</button>
+                <button (click)="toggleBlog(art.id)" [ngClass]="{ 'bg-emerald-500/15 border-emerald-500/50': art.showOnHomepage, 'bg-slate-950 border-slate-800': !art.showOnHomepage }" class="h-8 px-3 rounded-full text-xs font-black border transition-all cursor-pointer shrink-0 inline-flex items-center gap-1.5">
+                  <span [class]="art.showOnHomepage ? 'w-2 h-2 rounded-full bg-emerald-400' : 'w-2 h-2 rounded-full bg-slate-600'"></span>
+                  <span [class]="art.showOnHomepage ? 'text-emerald-300' : 'text-slate-400'">{{ art.showOnHomepage ? 'Hiện' : 'Ẩn' }}</span>
+                </button>
+                <button type="button" (click)="removeBlogFromManualList(art.id)" title="Bỏ khỏi danh sách homepage, không xóa bài viết gốc" class="h-8 w-8 rounded-full bg-slate-950 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-800 hover:border-red-500/60 transition-all inline-flex items-center justify-center">
+                  <i class="pi pi-trash text-xs"></i>
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div *ngIf="blogMode === 'AUTO_LATEST'" class="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-400">
+            Chế độ tự động sẽ lấy các bài đã xuất bản theo cấu hình ở trên. Danh sách thủ công, drag/drop và toggle từng bài được ẩn để tránh nhầm lẫn.
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL CHỌN BÀI VIẾT HOMEPAGE -->
+      <div *ngIf="showAddBlogModal()" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fade-in">
+        <div class="bg-[#111827] border border-slate-800 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl text-slate-100 flex flex-col overflow-hidden">
+          <div class="flex items-start justify-between gap-4 border-b border-slate-800 p-5 bg-[#111827] shrink-0">
+            <div>
+              <h3 class="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="pi pi-plus text-red-500"></i>
+                <span>Chọn bài viết</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">Chọn bài viết hiển thị ngoài trang chủ. Bài đã có trong danh sách sẽ không được thêm trùng.</p>
+            </div>
+            <button type="button" (click)="closeAddBlogModal()" class="text-slate-400 hover:text-white cursor-pointer">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+            <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3">
+              <div class="relative">
+                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                <input [(ngModel)]="blogPickerSearchQuery" placeholder="Tìm theo tiêu đề bài viết..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-red-500" />
+              </div>
+              <select [(ngModel)]="blogPickerCategoryFilter" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-red-500">
+                <option value="Tất cả">Tất cả chuyên mục</option>
+                <option *ngFor="let category of blogCategories()" [value]="category">{{ category }}</option>
+              </select>
+              <select [(ngModel)]="blogPickerSort" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-red-500">
+                <option value="NEWEST">Mới nhất</option>
+                <option value="OLDEST">Cũ nhất</option>
+                <option value="AZ">A → Z</option>
+                <option value="ZA">Z → A</option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+              <span class="text-xs font-bold text-slate-300">Đã chọn: {{ selectedBlogIds().length }} bài</span>
+              <span class="text-[11px] text-slate-500">Chỉ chọn được bài đã xuất bản và chưa nằm trong Manual List.</span>
+            </div>
+
+            <div *ngIf="addingBlogs()" class="rounded-2xl border border-slate-800 bg-slate-950/70 p-5 text-center text-xs text-slate-400">
+              Đang tải bài viết...
+            </div>
+
+            <div *ngIf="!addingBlogs()" class="space-y-3">
+              <button
+                *ngFor="let art of selectableBlogs()"
+                type="button"
+                (click)="toggleSelectedBlog(art.id)"
+                [ngClass]="selectedBlogIds().includes(art.id) ? 'border-red-500 bg-red-500/10' : 'border-slate-800 bg-slate-900 hover:border-slate-700'"
+                class="w-full p-3 rounded-2xl border flex items-center gap-3 text-left transition-all">
+                <span [ngClass]="selectedBlogIds().includes(art.id) ? 'bg-red-600 border-red-500 text-white' : 'bg-slate-950 border-slate-700 text-transparent'" class="w-5 h-5 rounded-md border inline-flex items-center justify-center text-[10px] font-black shrink-0">
+                  ✓
+                </span>
+                <img [src]="art.image" class="w-14 h-14 rounded-xl object-cover bg-slate-800 shrink-0" />
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-sm font-bold text-white line-clamp-1">{{ art.title }}</h4>
+                  <p class="text-[11px] text-amber-400 font-bold uppercase mt-1">{{ art.category }} • {{ art.date }}</p>
+                </div>
+                <span class="hidden sm:inline-flex px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-[10px] font-black">PUBLISHED</span>
+              </button>
+
+              <div *ngIf="selectableBlogs().length === 0" class="rounded-2xl border border-slate-800 bg-slate-950/70 p-6 text-center text-xs text-slate-400">
+                Không tìm thấy bài viết phù hợp.
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-800 p-4 bg-[#111827] shrink-0 flex flex-col sm:flex-row sm:justify-end gap-2">
+            <button type="button" (click)="closeAddBlogModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition-all">
+              Hủy
+            </button>
+            <button
+              type="button"
+              (click)="submitSelectedBlogs()"
+              [disabled]="selectedBlogIds().length === 0 || addingBlogs()"
+              class="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl transition-all">
+              {{ addingBlogs() ? 'ĐANG THÊM...' : selectedBlogIds().length ? 'Thêm ' + selectedBlogIds().length + ' bài viết' : 'Thêm bài viết' }}
+            </button>
           </div>
         </div>
       </div>
@@ -638,7 +799,7 @@ import { resolveCategoryIcon } from '../../../components/icon-picker/category-ic
                 <span *ngIf="shelfErrors()['sortType']" class="block mt-1 text-[11px] text-red-400 normal-case">{{ shelfErrors()['sortType'] }}</span>
               </label>
             </div>
-            <label class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="newShelfData.showViewAll" class="accent-red-600" /> Hiển thị nút “Xem tất cả”</label>
+            <label class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="newShelfData.showViewAll" class="accent-red-600" /> Hiển thị nút "Xem tất cả"</label>
 
             <div>
               <div class="font-bold text-slate-300 uppercase mb-2">Trạng thái</div>
@@ -1088,6 +1249,8 @@ export class AdminHomepageBuilderComponent implements OnInit {
   showPreviewShelfModal = signal(false);
   showDeleteConfirmModal = signal(false);
   showRestoreDefaultConfirm = signal(false);
+  showAddBlogModal = signal(false);
+  addingBlogs = signal(false);
   blockReorderBusy = signal(false);
   draggedBlockId = signal<string | null>(null);
 
@@ -1109,6 +1272,22 @@ export class AdminHomepageBuilderComponent implements OnInit {
   shelfBrandSearchQuery = '';
   shelfSubmitting = signal(false);
   shelfErrors = signal<Record<string, string>>({});
+  brandSearchQuery = '';
+  brandLimit = this.builderService.brandSettings().limit;
+  blogSearchQuery = '';
+  blogCategoryFilter = 'Tất cả';
+  blogMode = this.builderService.blogSettings().mode;
+  blogLimit = this.builderService.blogSettings().limit;
+  blogAutoCategory = this.builderService.blogSettings().category;
+  blogAutoSort = this.builderService.blogSettings().sortType;
+  blogPickerSearchQuery = '';
+  blogPickerCategoryFilter = 'Tất cả';
+  blogPickerSort: 'NEWEST' | 'OLDEST' | 'AZ' | 'ZA' = 'NEWEST';
+  selectedBlogIds = signal<number[]>([]);
+  availablePublishedBlogs = signal<BlogArticle[]>([]);
+  homepageArticleItems = signal<HomepageArticleItem[]>([]);
+  draggedBrandId = signal<string | null>(null);
+  draggedBlogId = signal<number | null>(null);
 
   activeShelvesBadge = computed(() => {
     const shelfBlocks = this.builderService.blocks().filter(block => block.type === 'CATEGORY_SHELF');
@@ -1175,6 +1354,7 @@ export class AdminHomepageBuilderComponent implements OnInit {
   constructor(
     public builderService: HomepageBuilderService,
     private productService: ProductService,
+    private articleService: ArticleService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
@@ -1571,6 +1751,332 @@ export class AdminHomepageBuilderComponent implements OnInit {
       this.shelfToDelete = null;
     }
     this.showDeleteConfirmModal.set(false);
+  }
+
+  visibleBrandCount(): number {
+    return this.builderService.brands().filter(brand => brand.showOnHomepage).length;
+  }
+
+  filteredBrands(): BrandItem[] {
+    const q = this.brandSearchQuery.trim().toLowerCase();
+    return [...this.builderService.brands()]
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      .filter(brand => !q || brand.name.toLowerCase().includes(q));
+  }
+
+  toggleBrand(id: string): void {
+    this.builderService.toggleBrandHomepage(id);
+    this.showToast('success', 'Đã lưu trạng thái thương hiệu');
+  }
+
+  setAllBrands(visible: boolean): void {
+    this.builderService.setAllBrandsHomepage(visible);
+    this.showToast('success', visible ? 'Đã bật tất cả thương hiệu' : 'Đã ẩn tất cả thương hiệu');
+  }
+
+  saveBrandLimit(): void {
+    this.brandLimit = Math.min(24, Math.max(1, Number(this.brandLimit) || 8));
+    this.builderService.saveBrandSettings({ limit: this.brandLimit });
+    this.showToast('success', 'Đã lưu giới hạn thương hiệu');
+  }
+
+  onBrandDragStart(event: DragEvent, id: string): void {
+    this.draggedBrandId.set(id);
+    event.dataTransfer?.setData('text/plain', id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  onBrandDrop(event: DragEvent, targetId: string): void {
+    event.preventDefault();
+    const sourceId = event.dataTransfer?.getData('text/plain') || this.draggedBrandId();
+    this.draggedBrandId.set(null);
+    if (!sourceId || sourceId === targetId) return;
+    this.builderService.reorderBrand(sourceId, targetId);
+    this.showToast('success', 'Đã lưu thứ tự thương hiệu');
+  }
+
+  onBrandDragEnd(): void {
+    this.draggedBrandId.set(null);
+  }
+
+  visibleBlogCount(): number {
+    return this.builderService.blogs()
+      .filter(blog => blog.inManualList !== false && blog.showOnHomepage && this.isBlogPublished(blog))
+      .length;
+  }
+
+  blogCategories(): string[] {
+    const categories = [
+      ...this.builderService.blogs().map(blog => blog.category),
+      ...this.availablePublishedBlogs().map(blog => blog.category)
+    ].filter(Boolean);
+    return [...new Set(categories)];
+  }
+
+  filteredBlogs(): BlogArticle[] {
+    const q = this.blogSearchQuery.trim().toLowerCase();
+    return [...this.builderService.blogs()]
+      .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+      .filter(blog => blog.inManualList !== false)
+      .filter(blog => this.blogCategoryFilter === 'Tất cả' || blog.category === this.blogCategoryFilter)
+      .filter(blog => !q || blog.title.toLowerCase().includes(q) || blog.category.toLowerCase().includes(q));
+  }
+
+  toggleBlog(id: number): void {
+    const item = this.builderService.blogs().find(blog => blog.id === id);
+    if (!item?.homepageItemId) return;
+    this.articleService.toggleHomepageArticleItem(item.homepageItemId).subscribe({
+      next: () => {
+        this.loadHomepageArticleItems();
+        this.showToast('success', 'Đã lưu trạng thái bài viết');
+      },
+      error: () => this.showToast('error', 'Không thể lưu trạng thái bài viết.')
+    });
+  }
+
+  setAllBlogs(visible: boolean): void {
+    const targets = this.builderService.blogs().filter(blog => blog.homepageItemId && blog.showOnHomepage !== visible);
+    if (!targets.length) return;
+    this.addingBlogs.set(true);
+    let remaining = targets.length;
+    targets.forEach(blog => {
+      this.articleService.toggleHomepageArticleItem(blog.homepageItemId!).subscribe({
+        next: () => {
+          remaining--;
+          if (remaining === 0) {
+            this.addingBlogs.set(false);
+            this.loadHomepageArticleItems();
+            this.showToast('success', visible ? 'Đã bật tất cả bài viết' : 'Đã ẩn tất cả bài viết');
+          }
+        },
+        error: () => {
+          remaining--;
+          if (remaining === 0) {
+            this.addingBlogs.set(false);
+            this.loadHomepageArticleItems();
+            this.showToast('error', 'Một số bài viết chưa cập nhật được.');
+          }
+        }
+      });
+    });
+  }
+
+  openAddBlogModal(): void {
+    this.blogPickerSearchQuery = '';
+    this.blogPickerCategoryFilter = 'Tất cả';
+    this.blogPickerSort = 'NEWEST';
+    this.selectedBlogIds.set([]);
+    this.showAddBlogModal.set(true);
+    this.loadPublishedArticlesForPicker();
+  }
+
+  closeAddBlogModal(): void {
+    if (this.addingBlogs()) return;
+    this.showAddBlogModal.set(false);
+    this.selectedBlogIds.set([]);
+  }
+
+  selectableBlogs(): BlogArticle[] {
+    const query = this.blogPickerSearchQuery.trim().toLowerCase();
+    const selectedManualIds = new Set(
+      this.builderService.blogs()
+        .filter(blog => blog.inManualList !== false)
+        .map(blog => blog.id)
+    );
+
+    const source = this.availablePublishedBlogs().length ? this.availablePublishedBlogs() : this.builderService.blogs();
+    return [...source]
+      .filter(blog => this.isBlogPublished(blog))
+      .filter(blog => !selectedManualIds.has(blog.id))
+      .filter(blog => this.blogPickerCategoryFilter === 'Tất cả' || blog.category === this.blogPickerCategoryFilter)
+      .filter(blog => !query || blog.title.toLowerCase().includes(query))
+      .sort((a, b) => {
+        switch (this.blogPickerSort) {
+          case 'OLDEST':
+            return this.parseBlogDate(a.date).getTime() - this.parseBlogDate(b.date).getTime();
+          case 'AZ':
+            return a.title.localeCompare(b.title, 'vi');
+          case 'ZA':
+            return b.title.localeCompare(a.title, 'vi');
+          case 'NEWEST':
+          default:
+            return this.parseBlogDate(b.date).getTime() - this.parseBlogDate(a.date).getTime();
+        }
+      });
+  }
+
+  toggleSelectedBlog(id: number): void {
+    const selected = this.selectedBlogIds();
+    this.selectedBlogIds.set(
+      selected.includes(id)
+        ? selected.filter(item => item !== id)
+        : [...selected, id]
+    );
+  }
+
+  submitSelectedBlogs(): void {
+    const ids = this.selectedBlogIds();
+    if (!ids.length || this.addingBlogs()) return;
+
+    this.addingBlogs.set(true);
+    this.articleService.addHomepageArticleItems(ids).subscribe({
+      next: items => {
+        this.applyHomepageArticleItems(items);
+        this.showAddBlogModal.set(false);
+        this.selectedBlogIds.set([]);
+        this.addingBlogs.set(false);
+        this.showToast('success', 'Đã thêm bài viết vào trang chủ.');
+      },
+      error: err => {
+        this.addingBlogs.set(false);
+        this.showToast('error', err?.error?.message || err?.error || 'Không thể thêm bài viết. Vui lòng thử lại.');
+      }
+    });
+  }
+
+  removeBlogFromManualList(id: number): void {
+    const item = this.builderService.blogs().find(blog => blog.id === id);
+    if (!item?.homepageItemId) return;
+    this.articleService.deleteHomepageArticleItem(item.homepageItemId).subscribe({
+      next: () => {
+        this.loadHomepageArticleItems();
+        this.showToast('success', 'Đã bỏ bài viết khỏi danh sách trang chủ');
+      },
+      error: () => this.showToast('error', 'Không thể bỏ bài viết khỏi trang chủ.')
+    });
+  }
+
+  private loadPublishedArticlesForPicker(): void {
+    this.addingBlogs.set(true);
+    this.articleService.getAdminArticles(0, 100, '', null, 'PUBLISHED').subscribe({
+      next: res => {
+        this.availablePublishedBlogs.set((res.content || []).map(article => this.articleToBlogItem(article)));
+        this.addingBlogs.set(false);
+      },
+      error: () => {
+        this.availablePublishedBlogs.set([]);
+        this.addingBlogs.set(false);
+        this.showToast('error', 'Không thể tải danh sách bài viết đã xuất bản.');
+      }
+    });
+  }
+
+  private articleToBlogItem(article: Article): BlogArticle {
+    return {
+      id: article.id,
+      title: article.title,
+      slug: article.slug,
+      category: article.category?.name || 'Tin công nghệ',
+      date: this.formatArticleDate(article.publishedAt || article.updatedAt || article.createdAt),
+      image: article.thumbnail || 'assets/placeholder-product.svg',
+      summary: article.excerpt || '',
+      readTime: '3 phút đọc',
+      showOnHomepage: true,
+      inManualList: false,
+      status: 'PUBLISHED'
+    };
+  }
+
+  private homepageItemToBlogItem(item: HomepageArticleItem): BlogArticle {
+    const article = item.article;
+    return {
+      ...this.articleToBlogItem(article),
+      homepageItemId: item.id,
+      showOnHomepage: item.active,
+      displayOrder: item.displayOrder,
+      inManualList: true,
+      status: article.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+      published: article.status === 'PUBLISHED'
+    };
+  }
+
+  private loadHomepageArticleItems(): void {
+    this.articleService.getHomepageArticleItems().subscribe({
+      next: items => this.applyHomepageArticleItems(items),
+      error: () => this.showToast('error', 'Không thể tải danh sách bài viết trang chủ.')
+    });
+  }
+
+  private applyHomepageArticleItems(items: HomepageArticleItem[]): void {
+    this.homepageArticleItems.set(items || []);
+    this.builderService.blogs.set((items || []).map(item => this.homepageItemToBlogItem(item)));
+  }
+
+  private formatArticleDate(value?: string): string {
+    if (!value) return new Date().toLocaleDateString('vi-VN');
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('vi-VN');
+  }
+
+  setBlogMode(mode: 'MANUAL' | 'AUTO_LATEST'): void {
+    this.blogMode = mode;
+    this.saveBlogSettings();
+  }
+
+  saveBlogSettings(): void {
+    this.blogLimit = Math.min(12, Math.max(1, Number(this.blogLimit) || 4));
+    this.builderService.saveBlogSettings({
+      mode: this.blogMode,
+      limit: this.blogLimit,
+      category: this.blogAutoCategory,
+      sortType: this.blogAutoSort
+    });
+    this.showToast('success', 'Đã lưu cấu hình tin tức');
+  }
+
+  onBlogDragStart(event: DragEvent, id: number): void {
+    this.draggedBlogId.set(id);
+    event.dataTransfer?.setData('text/plain', String(id));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  onBlogDrop(event: DragEvent, targetId: number): void {
+    event.preventDefault();
+    const sourceId = Number(event.dataTransfer?.getData('text/plain') || this.draggedBlogId());
+    this.draggedBlogId.set(null);
+    if (!sourceId || sourceId === targetId) return;
+    const list = [...this.builderService.blogs()].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const sourceIndex = list.findIndex(blog => blog.id === sourceId);
+    const targetIndex = list.findIndex(blog => blog.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+    const [moved] = list.splice(sourceIndex, 1);
+    list.splice(targetIndex, 0, moved);
+    const ids = list.map(blog => blog.homepageItemId).filter((id): id is number => !!id);
+    this.articleService.reorderHomepageArticleItems(ids).subscribe({
+      next: items => {
+        this.applyHomepageArticleItems(items);
+        this.showToast('success', 'Đã lưu thứ tự bài viết');
+      },
+      error: () => this.showToast('error', 'Không thể lưu thứ tự bài viết.')
+    });
+  }
+
+  private isBlogPublished(blog: BlogArticle): boolean {
+    if (blog.published === false) return false;
+    return !blog.status || blog.status === 'PUBLISHED';
+  }
+
+  private parseBlogDate(date: string): Date {
+    const [day, month, year] = date.split('/').map(Number);
+    return new Date(year || 1970, (month || 1) - 1, day || 1);
+  }
+
+  onBlogDragEnd(): void {
+    this.draggedBlogId.set(null);
+  }
+
+  onGenericDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  }
+
+  previewBlog(article: BlogArticle): void {
+    if (article.slug) {
+      window.open(`/tin-tuc/${article.slug}`, '_blank');
+      return;
+    }
+    this.showToast('success', `Xem trước: ${article.title}`);
   }
 
   private showToast(type: 'success' | 'error', text: string): void {

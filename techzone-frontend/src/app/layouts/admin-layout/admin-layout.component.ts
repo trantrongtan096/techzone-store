@@ -146,6 +146,14 @@ import { RouteManagementService } from '../../services/route-management.service'
                 <i class="pi pi-briefcase text-sm text-slate-400"></i>
                 <span>Quản lý Thương hiệu</span>
               </a>
+
+              <a
+                routerLink="/admin/articles" title="Quản lý bài viết"
+                routerLinkActive="bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold"
+                class="flex items-center gap-3 px-4 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-xs">
+                <i class="pi pi-file-edit text-sm text-slate-400"></i>
+                <span>Quản lý bài viết</span>
+              </a>
             </div>
 
             <!-- Super Admin Section Header -->

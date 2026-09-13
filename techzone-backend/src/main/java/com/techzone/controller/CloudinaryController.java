@@ -3,6 +3,7 @@ package com.techzone.controller;
 import com.techzone.service.CloudinaryService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,15 +25,21 @@ public class CloudinaryController {
     public ResponseEntity<Map<String, String>> uploadImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "subFolder", required = false) String subFolder) {
-        @SuppressWarnings("rawtypes")
-        Map uploadResult = cloudinaryService.uploadImage(file, subFolder);
-        
-        Map<String, String> response = new HashMap<>();
-        response.put("url", (String) uploadResult.get("secure_url"));
-        response.put("public_id", (String) uploadResult.get("public_id"));
-        response.put("format", (String) uploadResult.get("format"));
-        
-        return ResponseEntity.ok(response);
+        try {
+            @SuppressWarnings("rawtypes")
+            Map uploadResult = cloudinaryService.uploadImage(file, subFolder);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("url", (String) uploadResult.get("secure_url"));
+            response.put("public_id", (String) uploadResult.get("public_id"));
+            response.put("format", (String) uploadResult.get("format"));
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException ex) {
+            Map<String, String> response = new HashMap<>();
+            response.put("message", ex.getMessage() != null ? ex.getMessage() : "Không thể upload ảnh.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
     }
 
     @PostMapping("/upload-base64")

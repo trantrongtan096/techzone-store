@@ -7,6 +7,8 @@ import { CheckoutComponent } from './pages/checkout/checkout.component';
 import { PaymentComponent } from './pages/payment/payment.component';
 import { PaymentSuccessComponent } from './pages/payment-success/payment-success.component';
 import { MyOrdersComponent } from './pages/my-orders/my-orders.component';
+import { ArticleListComponent } from './pages/article-list/article-list.component';
+import { ArticleDetailComponent } from './pages/article-detail/article-detail.component';
 
 import { adminGuard } from './guards/admin.guard';
 import { superAdminGuard } from './guards/super-admin.guard';
@@ -19,6 +21,8 @@ import { AdminCategoryListComponent } from './pages/admin/admin-category-list/ad
 import { AdminBrandListComponent } from './pages/admin/admin-brand-list/admin-brand-list.component';
 import { AdminUserListComponent } from './pages/admin/admin-user-list/admin-user-list.component';
 import { AdminRouteListComponent } from './pages/admin/admin-route-list/admin-route-list.component';
+import { AdminArticleListComponent } from './pages/admin/admin-article-list/admin-article-list.component';
+import { AdminArticleFormComponent } from './pages/admin/admin-article-form/admin-article-form.component';
 
 import { AdminBannerListComponent } from './pages/admin/admin-banner-list/admin-banner-list.component';
 import { AdminFlashSaleComponent } from './pages/admin/admin-flash-sale/admin-flash-sale.component';
@@ -34,6 +38,8 @@ export const routes: Routes = [
   { path: 'account/orders', component: MyOrdersComponent },
   { path: 'payment/:orderCode/success', component: PaymentSuccessComponent },
   { path: 'payment/:orderCode', component: PaymentComponent },
+  { path: 'tin-tuc', component: ArticleListComponent },
+  { path: 'tin-tuc/:slug', component: ArticleDetailComponent },
 
   {
     path: 'admin',
@@ -48,6 +54,9 @@ export const routes: Routes = [
       { path: 'orders', component: AdminOrderListComponent },
       { path: 'categories', component: AdminCategoryListComponent },
       { path: 'brands', component: AdminBrandListComponent },
+      { path: 'articles', component: AdminArticleListComponent },
+      { path: 'articles/new', component: AdminArticleFormComponent },
+      { path: 'articles/:id/edit', component: AdminArticleFormComponent },
       { path: 'banners', component: AdminBannerListComponent },
       { path: 'flash-sale', component: AdminFlashSaleComponent },
       { path: 'homepage-builder', component: AdminHomepageBuilderComponent },

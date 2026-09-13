@@ -26,6 +26,7 @@ public class CloudinaryService {
     @SuppressWarnings("rawtypes")
     public Map uploadImage(MultipartFile file, String subFolder) {
         try {
+            validateImage(file);
             Map params = ObjectUtils.asMap(
                     "folder", buildTargetFolder(subFolder),
                     "format", "webp",
@@ -33,7 +34,7 @@ public class CloudinaryService {
                     "fetch_format", "auto"
             );
             return cloudinary.uploader().upload(file.getBytes(), params);
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Lỗi khi tải ảnh lên Cloudinary: " + e.getMessage());
         }
     }
@@ -74,6 +75,19 @@ public class CloudinaryService {
             return cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
         } catch (IOException e) {
             throw new RuntimeException("Lỗi khi xóa ảnh trên Cloudinary: " + e.getMessage());
+        }
+    }
+
+    private void validateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File ảnh không được để trống");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.matches("image/(jpeg|png|webp)")) {
+            throw new RuntimeException("Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new RuntimeException("Ảnh không được vượt quá 5MB");
         }
     }
 }
