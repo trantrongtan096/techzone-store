@@ -2,8 +2,10 @@ package com.techzone.service;
 
 import com.techzone.entity.Brand;
 import com.techzone.entity.Category;
+import com.techzone.dto.BrandDTO;
 import com.techzone.repository.BrandRepository;
 import com.techzone.repository.CategoryRepository;
+import com.techzone.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
+    private final ProductRepository productRepository;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
@@ -39,6 +42,16 @@ public class CategoryService {
 
     public List<Brand> getAllBrands() {
         return brandRepository.findAll();
+    }
+
+    public List<BrandDTO> getBrandsByCategory(Long categoryId) {
+        return productRepository.findBrandCountsByCategoryId(categoryId).stream()
+                .map(row -> BrandDTO.builder()
+                        .id((Long) row[0])
+                        .name((String) row[1])
+                        .productCount(((Number) row[2]).longValue())
+                        .build())
+                .toList();
     }
 
     @Transactional

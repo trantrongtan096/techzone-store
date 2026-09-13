@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { RouteManagementService } from '../../services/route-management.service';
 import { HomeService } from '../../services/home.service';
 import { Category, Product } from '../../models/product.model';
+import { resolveCategoryIcon } from '../icon-picker/category-icon-registry';
 
 @Component({
   selector: 'app-header',
@@ -136,7 +137,7 @@ import { Category, Product } from '../../models/product.model';
             [queryParams]="{ category: cat.slug || cat.id }"
             class="text-white hover:text-yellow-300 transition-colors flex items-center gap-1.5 whitespace-nowrap">
             <img *ngIf="isImageUrl(cat.icon)" [src]="cat.icon" class="w-4 h-4 object-contain brightness-0 invert" [alt]="cat.name" />
-            <i *ngIf="!isImageUrl(cat.icon)" [class]="cat.icon || 'pi pi-tag'" class="text-red-200 text-xs"></i>
+            <i *ngIf="!isImageUrl(cat.icon)" [class]="categoryIcon(cat)" class="text-red-200 text-xs"></i>
             {{ cat.name }}
           </a>
 
@@ -218,5 +219,14 @@ export class HeaderComponent implements OnInit {
            str.startsWith('/') || 
            str.startsWith('assets/') || 
            /\.(svg|png|jpg|jpeg|webp)$/i.test(str);
+  }
+
+  categoryIcon(category: Category): string {
+    return resolveCategoryIcon(category.icon, category.name, category.slug);
+  }
+
+  isIconClass(icon?: string): boolean {
+    if (!icon) return false;
+    return icon.startsWith('pi ') || icon.startsWith('fa-');
   }
 }

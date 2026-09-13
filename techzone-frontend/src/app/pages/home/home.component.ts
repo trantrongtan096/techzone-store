@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, computed, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, effect, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
@@ -6,7 +6,8 @@ import { ProductService } from '../../services/product.service';
 import { CartService } from '../../services/cart.service';
 import { HomeService, Banner } from '../../services/home.service';
 import { HomepageBuilderService, ProductShelf } from '../../services/homepage-builder.service';
-import { Category, Product } from '../../models/product.model';
+import { Brand, Category, Product } from '../../models/product.model';
+import { resolveCategoryIcon } from '../../components/icon-picker/category-icon-registry';
 
 @Component({
   selector: 'app-home',
@@ -204,8 +205,7 @@ import { Category, Product } from '../../models/product.model';
               class="bg-white border border-slate-200/80 hover:border-[#E30019] rounded-2xl p-3 flex flex-col items-center justify-center text-center transition-all group hover:shadow-md cursor-pointer">
               <div class="w-12 h-12 rounded-2xl bg-slate-50 group-hover:bg-red-50 flex items-center justify-center text-2xl mb-2 transition-transform group-hover:scale-110 shadow-xs">
                 <img *ngIf="isImageUrl(cat.icon)" [src]="cat.icon" [alt]="cat.name" class="w-7 h-7 object-contain" />
-                <i *ngIf="!isImageUrl(cat.icon) && isIconClass(cat.icon)" [class]="cat.icon" class="text-[#E30019] text-xl"></i>
-                <span *ngIf="!isImageUrl(cat.icon) && !isIconClass(cat.icon)">{{ cat.icon || '🏷️' }}</span>
+                <i *ngIf="!isImageUrl(cat.icon)" [class]="categoryIcon(cat)" class="text-[#E30019] text-xl"></i>
               </div>
               <span class="text-xs font-bold text-slate-800 group-hover:text-[#E30019] line-clamp-1">
                 {{ cat.name }}
@@ -402,7 +402,7 @@ import { Category, Product } from '../../models/product.model';
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div class="flex items-center gap-3">
               <div class="w-9 h-9 rounded-xl bg-red-100 text-[#E30019] flex items-center justify-center font-bold text-lg">
-                {{ getShelfData(blk.shelfId)?.icon }}
+                <i [class]="getShelfCategoryIcon(blk.shelfId)" class="text-lg"></i>
               </div>
               <div>
                 <h3 class="text-lg font-black text-slate-900 uppercase">{{ getShelfData(blk.shelfId)?.title }}</h3>
@@ -411,9 +411,9 @@ import { Category, Product } from '../../models/product.model';
             </div>
 
             <!-- Quick Filters Pills -->
-            <div class="flex items-center gap-1.5 flex-wrap text-xs font-bold">
+            <div *ngIf="getShelfData(blk.shelfId)?.showTabs !== false" class="flex items-center gap-1.5 flex-wrap text-xs font-bold">
               <button
-                *ngFor="let filterItem of getShelfData(blk.shelfId)?.subFilters || []"
+                *ngFor="let filterItem of getShelfTabs(blk.shelfId)"
                 (click)="setShelfActiveFilter(blk.shelfId, filterItem)"
                 [ngClass]="{
                   'bg-slate-900 text-white': getShelfActiveFilter(blk.shelfId) === filterItem,
@@ -429,21 +429,30 @@ import { Category, Product } from '../../models/product.model';
             <div
               *ngFor="let p of getFilteredShelfProducts(blk.shelfId)"
               [routerLink]="['/products', p.slug]"
-              class="border border-red-500/80 rounded-3xl p-3 flex flex-col justify-between hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-pointer bg-white h-full min-h-[330px]">
-              <div>
-                <div class="w-full h-36 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 overflow-hidden">
-                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
-                </div>
-                <h4 class="text-xs font-black text-slate-950 line-clamp-2 min-h-[32px] leading-snug">{{ p.name }}</h4>
+              class="border border-red-400/80 rounded-3xl p-3.5 flex flex-col hover:shadow-lg hover:-translate-y-0.5 transition-all group cursor-pointer bg-white h-full min-h-[335px]">
+              <div class="w-full h-36 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 overflow-hidden">
+                <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500" />
               </div>
-              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span class="text-sm font-black text-[#E30019]">{{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ</span>
-                <button (click)="onAddToCart(p, $event)" class="bg-slate-950 hover:bg-[#E30019] text-white font-black text-[11px] px-4 h-10 rounded-2xl flex items-center justify-center gap-1.5 transition-colors">
+
+              <h4 class="text-sm font-black text-slate-950 line-clamp-2 min-h-[40px] leading-snug">{{ p.name }}</h4>
+
+              <div class="mt-auto pt-3">
+                <div class="border-t border-slate-100 pt-3 mb-3">
+                  <span class="block text-base font-black text-[#E30019] whitespace-nowrap">{{ (p.promotionPrice || p.originalPrice) | number:'1.0-0' }}đ</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="onAddToCart(p, $event)"
+                  class="w-full bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs h-10 rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm whitespace-nowrap">
                   <i class="pi pi-shopping-cart text-xs"></i>
                   <span>THÊM VÀO GIỎ</span>
                 </button>
               </div>
             </div>
+          </div>
+          <div *ngIf="getShelfData(blk.shelfId)?.showViewAll !== false" class="text-center pt-2">
+            <a routerLink="/products" [queryParams]="{ category: getShelfData(blk.shelfId)?.categorySlug }"
+              class="inline-block text-sm font-bold text-[#E30019] hover:underline">Xem tất cả →</a>
           </div>
         </section>
 
@@ -580,7 +589,33 @@ export class HomeComponent implements OnInit, OnDestroy {
     public cartService: CartService,
     private homeService: HomeService,
     public builderService: HomepageBuilderService
-  ) {}
+  ) {
+    effect((onCleanup) => {
+      const shelves = this.builderService.shelves();
+      const categories = this.shelfCategories();
+      const filters = this.shelfActiveFilters();
+      const brands = this.shelfBrands();
+      const subscriptions = new Subscription();
+      for (const shelf of shelves.filter(s => s.active !== false)) {
+        const category = categories.find(c => c.slug === shelf.categorySlug || String(c.id) === shelf.categorySlug);
+        if (!category) continue;
+        const active = filters[shelf.id] || 'Tất cả';
+        const brand = brands.find(b => b.name === active);
+        if (active !== 'Tất cả' && !brand) continue;
+        subscriptions.add(this.productService.filterProducts({
+          categoryId: category.id, brandId: brand?.id,
+          size: Math.min(20, Math.max(1, shelf.limit || 5)), page: 0,
+          sortBy: ({ BEST_SELLER: 'best_seller', BEST_SELLING: 'best_seller', NEWEST: 'newest',
+            PRICE_ASC: 'price_asc', PRICE_DESC: 'price_desc', DISCOUNT: 'discount',
+            BIGGEST_DISCOUNT: 'discount' })[shelf.sortType || 'BEST_SELLER']
+        }).subscribe({
+          next: res => this.shelfProducts.update(current => ({ ...current, [shelf.id]: res.content })),
+          error: () => this.shelfProducts.update(current => ({ ...current, [shelf.id]: [] }))
+        }));
+      }
+      onCleanup(() => subscriptions.unsubscribe());
+    });
+  }
 
   currentHeroBanner(): Banner | null {
     const list = this.heroBanners();
@@ -728,10 +763,29 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
+  shelfCategories = signal<Category[]>([]);
+  shelfBrands = signal<Brand[]>([]);
+  shelfProducts = signal<Record<string, Product[]>>({});
+
+  getShelfTabs(shelfId?: string): string[] {
+    const shelf = this.getShelfData(shelfId);
+    if (!shelf) return ['Tất cả'];
+    const names = shelf.brandIds !== undefined
+      ? this.shelfBrands().filter(b => shelf.brandIds!.includes(b.id)).map(b => b.name)
+      : this.shelfBrands().filter(b => shelf.subFilters.some(name => name.toLowerCase() === b.name.toLowerCase())).map(b => b.name);
+    return ['Tất cả', ...names];
+  }
+
   // Dynamic Product Shelves Helper Methods
   getShelfData(shelfId?: string): ProductShelf | undefined {
     if (!shelfId) return undefined;
     return this.builderService.shelves().find(s => s.id === shelfId && s.active !== false);
+  }
+
+  getShelfCategoryIcon(shelfId?: string): string {
+    const shelf = this.getShelfData(shelfId);
+    const category = shelf ? this.shelfCategories().find(c => c.slug === shelf.categorySlug || String(c.id) === shelf.categorySlug) : undefined;
+    return category ? this.categoryIcon(category) : resolveCategoryIcon();
   }
 
   getShelfActiveFilter(shelfId?: string): string {
@@ -747,25 +801,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   getFilteredShelfProducts(shelfId?: string): Product[] {
-    const shelf = this.getShelfData(shelfId);
-    const list = this.featuredProducts();
-    if (!shelf || shelf.active === false || !shelf.categorySlug) return [];
-
-    const activeFilter = this.getShelfActiveFilter(shelfId);
-    const targetSlug = shelf.categorySlug.toLowerCase();
-
-    const categoryProducts = list.filter(p =>
-      p.category?.slug?.toLowerCase() === targetSlug ||
-      p.category?.id?.toString() === targetSlug
-    );
-
-    const baseList = categoryProducts;
-
-    if (activeFilter === 'Tất cả') return baseList.slice(0, 5);
-    return baseList.filter(p =>
-      p.name.toLowerCase().includes(activeFilter.toLowerCase()) ||
-      (p.brand && p.brand.name.toLowerCase().includes(activeFilter.toLowerCase()))
-    ).slice(0, 5);
+    return shelfId ? this.shelfProducts()[shelfId] || [] : [];
   }
 
   onAddToCart(product: Product, event: Event): void {
@@ -783,6 +819,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.productService.getCategories().subscribe(res => this.shelfCategories.set(res));
+    this.productService.getBrands().subscribe(res => this.shelfBrands.set(res));
     this.homeService.getBannersByPosition('HERO_SLIDER').subscribe(res => {
       if (res && res.length > 0) this.heroBanners.set(res);
     });
@@ -863,6 +901,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   isIconClass(icon?: string): boolean {
     if (!icon) return false;
     return icon.startsWith('pi ') || icon.startsWith('fa-');
+  }
+
+  categoryIcon(category: Category): string {
+    return resolveCategoryIcon(category.icon, category.name, category.slug);
   }
 
   ngOnDestroy(): void {

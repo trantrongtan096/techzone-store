@@ -69,7 +69,7 @@ public class ProductService {
         return p;
     }
 
-    public Page<Product> filterProducts(Long categoryId, Long brandId, BigDecimal minPrice, BigDecimal maxPrice,
+    public Page<Product> filterProducts(List<Long> categoryIds, List<Long> brandIds, BigDecimal minPrice, BigDecimal maxPrice,
                                          String search, String sortBy, int page, int size) {
         Sort sort = Sort.by("id").descending();
         if ("price_asc".equalsIgnoreCase(sortBy)) {
@@ -80,8 +80,44 @@ public class ProductService {
             sort = Sort.by("createdAt").descending();
         }
 
-        Pageable pageable = PageRequest.of(page, size, sort);
-        return productRepository.filterProducts(categoryId, brandId, minPrice, maxPrice, search, pageable);
+        Pageable pageable = PageRequest.of(page, size, Sort.unsorted());
+        return productRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.or(cb.isNull(root.get("isActive")), cb.isTrue(root.get("isActive"))));
+            if (categoryIds != null && !categoryIds.isEmpty()) predicates.add(root.get("category").get("id").in(categoryIds));
+            if (brandIds != null && !brandIds.isEmpty()) predicates.add(root.get("brand").get("id").in(brandIds));
+            var price = cb.<BigDecimal>coalesce(root.get("promotionPrice"), root.get("originalPrice"));
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                if ("best_seller".equalsIgnoreCase(sortBy)) {
+                    var sold = query.subquery(Long.class);
+                    var item = sold.from(com.techzone.entity.OrderItem.class);
+                    sold.select(cb.sumAsLong(item.get("quantity")));
+                    sold.where(cb.equal(item.get("product").get("id"), root.get("id")),
+                            cb.equal(item.get("order").get("orderStatus"), "DELIVERED"));
+                    query.orderBy(cb.desc(cb.coalesce(sold, 0L)), cb.desc(root.get("id")));
+                } else if ("discount".equalsIgnoreCase(sortBy) || "biggest_discount".equalsIgnoreCase(sortBy)) {
+                    var percentage = cb.<Number>selectCase()
+                            .when(cb.gt(root.get("originalPrice"), BigDecimal.ZERO),
+                                    cb.quot(cb.diff(root.get("originalPrice"), price), root.get("originalPrice")))
+                            .otherwise(0);
+                    query.orderBy(cb.desc(percentage), cb.desc(root.get("id")));
+                } else if ("price_asc".equalsIgnoreCase(sortBy)) {
+                    query.orderBy(cb.asc(price), cb.desc(root.get("id")));
+                } else if ("price_desc".equalsIgnoreCase(sortBy)) {
+                    query.orderBy(cb.desc(price), cb.desc(root.get("id")));
+                } else {
+                    query.orderBy(cb.desc(root.get("createdAt")), cb.desc(root.get("id")));
+                }
+            }
+            if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(price, minPrice));
+            if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(price, maxPrice));
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.toLowerCase(Locale.ROOT) + "%";
+                predicates.add(cb.or(cb.like(cb.lower(root.get("name")), pattern),
+                        cb.like(cb.lower(root.get("specsJson")), pattern)));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        }, pageable);
     }
 
     public Page<Product> filterAdminProducts(Long categoryId, Long brandId, String status, String search, int page, int size) {

@@ -22,9 +22,15 @@ export interface ProductShelf {
   title: string;
   categorySlug: string;
   subFilters: string[];
+  brandIds?: number[];
   bannerUrl?: string;
-  icon: string;
+  icon?: string;
   active: boolean;
+  order?: number;
+  limit?: number; // default 5
+  sortType?: 'BEST_SELLER' | 'BEST_SELLING' | 'NEWEST' | 'PRICE_ASC' | 'PRICE_DESC' | 'DISCOUNT' | 'BIGGEST_DISCOUNT';
+  showTabs?: boolean;
+  showViewAll?: boolean;
 }
 
 export interface BlogArticle {
@@ -81,7 +87,12 @@ export class HomepageBuilderService {
       categorySlug: 'laptop-gaming',
       subFilters: ['Tất cả', 'Asus ROG', 'MSI', 'Acer Predator', 'Lenovo Legion'],
       icon: '💻',
-      active: true
+      active: true,
+      order: 1,
+      limit: 5,
+      sortType: 'BEST_SELLER',
+      showTabs: true,
+      showViewAll: true
     },
     {
       id: 'shf-2',
@@ -89,7 +100,12 @@ export class HomepageBuilderService {
       categorySlug: 'pc-build',
       subFilters: ['Tất cả', 'PC Văn Phòng', 'PC Gaming Giá Rẻ', 'PC Streamer/Render'],
       icon: '🖥️',
-      active: true
+      active: true,
+      order: 2,
+      limit: 5,
+      sortType: 'BEST_SELLER',
+      showTabs: true,
+      showViewAll: true
     }
   ];
 
@@ -162,12 +178,12 @@ export class HomepageBuilderService {
     const savedBlocks = localStorage.getItem(this.STORAGE_BLOCKS_KEY);
     if (savedBlocks) {
       try {
-        this.blocks.set(JSON.parse(savedBlocks));
+        this.blocks.set(this.normalizeBlockOrder(JSON.parse(savedBlocks), true));
       } catch (e) {
-        this.blocks.set([...this.defaultBlocks]);
+        this.blocks.set(this.normalizeBlockOrder(this.defaultBlocks, true));
       }
     } else {
-      this.blocks.set([...this.defaultBlocks]);
+      this.blocks.set(this.normalizeBlockOrder(this.defaultBlocks, true));
     }
 
     // 2. USPs
@@ -221,36 +237,57 @@ export class HomepageBuilderService {
 
   // --- BLOCKS MANAGEMENT ---
   saveBlocks(newBlocks: HomepageBlock[]): void {
-    newBlocks.sort((a, b) => a.order - b.order);
-    this.blocks.set([...newBlocks]);
-    localStorage.setItem(this.STORAGE_BLOCKS_KEY, JSON.stringify(newBlocks));
+    const normalizedBlocks = this.normalizeBlockOrder(newBlocks);
+    this.blocks.set([...normalizedBlocks]);
+    localStorage.setItem(this.STORAGE_BLOCKS_KEY, JSON.stringify(normalizedBlocks));
   }
 
   toggleBlockActive(id: string): void {
-    const list = this.blocks();
+    const list = [...this.blocks()];
     const item = list.find(b => b.id === id);
     if (item) {
       item.active = !item.active;
       this.saveBlocks(list);
+      if (item.type === 'CATEGORY_SHELF' && item.shelfId) {
+        this.setShelfActive(item.shelfId, item.active);
+      }
     }
   }
 
   moveBlockOrder(id: string, direction: 'UP' | 'DOWN'): void {
-    const list = [...this.blocks()].sort((a, b) => a.order - b.order);
+    const list = this.normalizeBlockOrder(this.blocks(), true);
     const index = list.findIndex(b => b.id === id);
     if (index === -1) return;
 
     if (direction === 'UP' && index > 0) {
-      const prevOrder = list[index - 1].order;
-      list[index - 1].order = list[index].order;
-      list[index].order = prevOrder;
+      const temp = list[index - 1];
+      list[index - 1] = list[index];
+      list[index] = temp;
     } else if (direction === 'DOWN' && index < list.length - 1) {
-      const nextOrder = list[index + 1].order;
-      list[index + 1].order = list[index].order;
-      list[index].order = nextOrder;
+      const temp = list[index + 1];
+      list[index + 1] = list[index];
+      list[index] = temp;
     }
 
     this.saveBlocks(list);
+  }
+
+  reorderBlock(sourceId: string, targetId: string): void {
+    const list = this.normalizeBlockOrder(this.blocks(), true);
+    const sourceIndex = list.findIndex(b => b.id === sourceId);
+    const targetIndex = list.findIndex(b => b.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
+
+    const [movedBlock] = list.splice(sourceIndex, 1);
+    list.splice(targetIndex, 0, movedBlock);
+    this.saveBlocks(list);
+  }
+
+  private normalizeBlockOrder(blocks: HomepageBlock[], sortBeforeNormalize = false): HomepageBlock[] {
+    const list = sortBeforeNormalize
+      ? [...blocks].sort((a, b) => (a.order || 0) - (b.order || 0))
+      : [...blocks];
+    return list.map((block, index) => ({ ...block, order: index + 1 }));
   }
 
   // --- USPS MANAGEMENT ---
@@ -265,11 +302,11 @@ export class HomepageBuilderService {
     localStorage.setItem(this.STORAGE_SHELVES_KEY, JSON.stringify(newShelves));
   }
 
-  addShelf(shelfData: Omit<ProductShelf, 'id' | 'active'>): void {
+  addShelf(shelfData: Omit<ProductShelf, 'id' | 'active'> & { active?: boolean }): void {
     const newShelf: ProductShelf = {
       ...shelfData,
       id: 'shf-' + Date.now(),
-      active: true
+      active: shelfData.active ?? true
     };
     const current = this.shelves();
     const updated = [...current, newShelf];
@@ -297,12 +334,71 @@ export class HomepageBuilderService {
   }
 
   toggleShelfActive(id: string): void {
-    const list = this.shelves();
+    const list = [...this.shelves()];
     const item = list.find(s => s.id === id);
     if (item) {
       item.active = !item.active;
       this.saveShelves(list);
+      this.setShelfBlockActive(id, item.active);
     }
+  }
+
+  setShelfActive(id: string, active: boolean): void {
+    const list = [...this.shelves()];
+    const item = list.find(s => s.id === id);
+    if (item && item.active !== active) {
+      item.active = active;
+      this.saveShelves(list);
+    }
+  }
+
+  setShelfBlockActive(shelfId: string, active: boolean): void {
+    const list = [...this.blocks()];
+    const item = list.find(block => block.type === 'CATEGORY_SHELF' && block.shelfId === shelfId);
+    if (item && item.active !== active) {
+      item.active = active;
+      this.saveBlocks(list);
+    }
+  }
+
+  updateShelf(updatedShelf: ProductShelf): void {
+    const list = [...this.shelves()];
+    const index = list.findIndex(s => s.id === updatedShelf.id);
+    if (index !== -1) {
+      list[index] = { ...updatedShelf };
+      this.saveShelves(list);
+    }
+  }
+
+  moveShelfOrder(id: string, direction: 'UP' | 'DOWN'): void {
+    const list = [...this.shelves()];
+    const index = list.findIndex(s => s.id === id);
+    if (index === -1) return;
+
+    if (direction === 'UP' && index > 0) {
+      const temp = list[index - 1];
+      list[index - 1] = list[index];
+      list[index] = temp;
+    } else if (direction === 'DOWN' && index < list.length - 1) {
+      const temp = list[index + 1];
+      list[index + 1] = list[index];
+      list[index] = temp;
+    }
+
+    list.forEach((s, idx) => s.order = idx + 1);
+    this.saveShelves(list);
+  }
+
+  reorderShelf(sourceId: string, targetId: string): void {
+    const list = [...this.shelves()];
+    const sourceIndex = list.findIndex(s => s.id === sourceId);
+    const targetIndex = list.findIndex(s => s.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
+
+    const [movedShelf] = list.splice(sourceIndex, 1);
+    list.splice(targetIndex, 0, movedShelf);
+    list.forEach((s, idx) => s.order = idx + 1);
+    this.saveShelves(list);
   }
 
   // --- BLOGS MANAGEMENT ---

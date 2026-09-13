@@ -1,5 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../services/product.service';
@@ -11,7 +11,7 @@ import { Brand, Category, Product } from '../../models/product.model';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   template: `
-    <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="max-w-[1440px] mx-auto px-4 py-6 pb-8">
       <div
         *ngIf="cartToast()"
         class="fixed top-24 right-6 z-[100] w-[360px] max-w-[calc(100vw-32px)] bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
@@ -44,110 +44,192 @@ import { Brand, Category, Product } from '../../models/product.model';
           </button>
         </div>
       </div>
-      <div class="space-y-6 animate-fade-in">
+      <div class="space-y-5 animate-fade-in">
       <!-- Title & Breadcrumb Bar -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-4">
-        <div>
-          <h1 class="text-2xl font-black text-gray-800 uppercase tracking-wide">Danh Mục Sản Phẩm</h1>
-          <p class="text-xs text-slate-500">Khám phá các thiết bị Gaming & Linh kiện PC cao cấp tại TechZone</p>
+      <div class="space-y-2 border-b border-gray-200 pb-4">
+        <nav class="text-[11px] font-semibold text-slate-400 flex items-center gap-2">
+          <a routerLink="/" class="hover:text-[#E30019]">Trang chủ</a>
+          <i class="pi pi-chevron-right text-[9px]"></i>
+          <span class="text-slate-700">Danh mục sản phẩm</span>
+        </nav>
+        <div class="border-l-4 border-[#E30019] pl-4">
+          <h1 class="text-2xl font-black text-gray-800 uppercase tracking-wide leading-tight">Danh Mục Sản Phẩm</h1>
+          <p class="text-xs text-slate-500 mt-1">Khám phá các thiết bị Gaming & Linh kiện PC cao cấp tại TechZone</p>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <!-- SIDEBAR FILTERS -->
-        <aside class="lg:col-span-3 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-6">
+        <aside class="lg:col-span-3 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-6 lg:sticky lg:top-28 self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto filter-sidebar-scroll">
           <div class="flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 class="text-xs font-black uppercase text-gray-800 flex items-center gap-2">
-              <i class="pi pi-filter text-[#E30019]"></i> Bộ Lọc Tìm Kiếm
+              <i class="pi pi-filter-fill text-[#E30019]"></i> Bộ Lọc Tìm Kiếm
             </h3>
-            <button (click)="resetFilters()" class="text-[10px] font-bold text-[#E30019] hover:underline">Đặt lại</button>
+            <button (click)="resetFilters()" class="text-[10px] font-bold text-[#E30019] hover:underline">Xóa tất cả</button>
           </div>
 
-          <!-- Search Input -->
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Từ khóa</label>
-            <input 
-              type="text" 
-              [(ngModel)]="searchQuery"
-              (keyup.enter)="onSearchInput()"
-              placeholder="VD: RTX 4070, ROG..." 
-              class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#E30019]" />
+          <div *ngIf="selectedCategoryIds().length || selectedBrandIds().length || minPrice() !== undefined || maxPrice() !== undefined"
+            class="space-y-2 border-b border-gray-100 pb-4" aria-live="polite">
+            <h4 class="text-xs font-bold text-slate-700 uppercase">Đã chọn</h4>
+            <div class="flex flex-wrap gap-2">
+              <button *ngFor="let cat of selectedCategories()" type="button" (click)="onCategoryToggle(cat.id)"
+                [attr.aria-label]="'Bỏ danh mục ' + cat.name"
+                class="text-xs text-[#E30019] bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                Danh mục: {{ cat.name }} <span aria-hidden="true">×</span>
+              </button>
+              <button *ngFor="let brand of selectedBrands()" type="button" (click)="onBrandToggle(brand.id)"
+                [attr.aria-label]="'Bỏ thương hiệu ' + brand.name"
+                class="text-xs text-[#E30019] bg-red-50 border border-red-100 rounded-lg px-2 py-1.5">
+                Thương hiệu: {{ brand.name }} <span aria-hidden="true">×</span>
+              </button>
+              <button *ngIf="minPrice() !== undefined || maxPrice() !== undefined" type="button"
+                (click)="setPriceRange(undefined, undefined)" aria-label="Bỏ khoảng giá"
+                class="text-xs text-slate-700 bg-slate-100 rounded-lg px-2 py-1.5">
+                Giá: {{ priceFilterLabel() }} <span aria-hidden="true">×</span>
+              </button>
+            </div>
           </div>
 
           <!-- Category Filter -->
           <div>
             <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh Mục</h4>
-            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-xs cursor-pointer py-1.5 px-2 rounded-xl border border-transparent"
+                [class.bg-red-50]="selectedCategoryIds().length === 0"
+                [class.text-red-600]="selectedCategoryIds().length === 0">
+                <input type="checkbox" name="allCategories"
+                  [checked]="selectedCategoryIds().length === 0"
+                  (change)="selectAllCategories($event)"
+                  class="accent-[#E30019] w-4 h-4 shrink-0" />
+                <span>Tất cả</span>
+              </label>
               <label 
-                *ngFor="let cat of categories()" 
-                class="flex items-center gap-2 text-xs text-slate-700 hover:text-[#E30019] cursor-pointer py-1">
+                *ngFor="let cat of visibleCategories()" 
+                [ngClass]="{
+                  'bg-red-50 text-[#E30019] border-red-100 font-black': selectedCategoryIds().includes(cat.id),
+                  'border-transparent hover:bg-slate-50': !selectedCategoryIds().includes(cat.id)
+                }"
+                class="flex items-center justify-between gap-2 text-xs text-slate-700 hover:text-[#E30019] cursor-pointer py-1.5 px-2 rounded-xl border transition-colors">
+                <span class="flex items-center gap-2 min-w-0">
                 <input 
-                  type="radio" 
+                  type="checkbox" 
                   name="category" 
                   [value]="cat.id" 
-                  [ngModel]="selectedCategoryId()" 
-                  (ngModelChange)="onCategorySelect(cat.id)"
-                  class="accent-[#E30019]" />
-                <span>{{ cat.name }}</span>
+                  [checked]="selectedCategoryIds().includes(cat.id)"
+                  (change)="onCategoryToggle(cat.id)"
+                  class="accent-[#E30019] w-4 h-4 shrink-0" />
+                <span class="truncate">{{ cat.name }}</span>
+                </span>
+                <span class="text-[10px] text-slate-400 bg-white border border-slate-100 rounded-full px-1.5">{{ getCategoryCount(cat.id) }}</span>
               </label>
+              <button *ngIf="categories().length > 6" type="button"
+                (click)="showAllCategories.set(!showAllCategories())" [attr.aria-expanded]="showAllCategories()"
+                class="text-xs font-bold text-[#E30019] hover:underline px-2 pt-2">
+                {{ showAllCategories() ? 'Thu gọn' : 'Xem thêm (' + (categories().length - 6) + ')' }}
+              </button>
             </div>
           </div>
 
           <!-- Brand Filter -->
-          <div>
+          <div class="border-t border-gray-100 pt-5">
             <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Thương Hiệu</h4>
-            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-xs cursor-pointer py-1.5 px-2 rounded-xl border border-transparent"
+                [class.bg-red-50]="selectedBrandIds().length === 0"
+                [class.text-red-600]="selectedBrandIds().length === 0">
+                <input type="checkbox" name="allBrands"
+                  [checked]="selectedBrandIds().length === 0"
+                  (change)="selectAllBrands($event)"
+                  class="accent-[#E30019] w-4 h-4 shrink-0" />
+                <span>Tất cả</span>
+              </label>
               <label 
-                *ngFor="let brand of brands()" 
-                class="flex items-center gap-2 text-xs text-slate-700 hover:text-[#E30019] cursor-pointer py-1">
+                *ngFor="let brand of visibleBrands()" 
+                [ngClass]="{
+                  'bg-red-50 text-[#E30019] border-red-100 font-black': selectedBrandIds().includes(brand.id),
+                  'border-transparent hover:bg-slate-50': !selectedBrandIds().includes(brand.id)
+                }"
+                class="flex items-center justify-between gap-2 text-xs text-slate-700 hover:text-[#E30019] cursor-pointer py-1.5 px-2 rounded-xl border transition-colors">
+                <span class="flex items-center gap-2 min-w-0">
                 <input 
-                  type="radio" 
+                  type="checkbox" 
                   name="brand" 
                   [value]="brand.id" 
-                  [ngModel]="selectedBrandId()" 
-                  (ngModelChange)="onBrandSelect(brand.id)"
-                  class="accent-[#E30019]" />
-                <span>{{ brand.name }}</span>
+                  [checked]="selectedBrandIds().includes(brand.id)"
+                  (change)="onBrandToggle(brand.id)"
+                  class="accent-[#E30019] w-4 h-4 shrink-0" />
+                <span class="truncate">{{ brand.name }}</span>
+                </span>
+                <span class="text-[10px] text-slate-400 bg-white border border-slate-100 rounded-full px-1.5">{{ getBrandCount(brand.id) }}</span>
               </label>
+              <button *ngIf="brands().length > 6" type="button"
+                (click)="showAllBrands.set(!showAllBrands())" [attr.aria-expanded]="showAllBrands()"
+                class="text-xs font-bold text-[#E30019] hover:underline px-2 pt-2">
+                {{ showAllBrands() ? 'Thu gọn' : 'Xem thêm (' + (brands().length - 6) + ')' }}
+              </button>
             </div>
           </div>
 
           <!-- Price Range Filter -->
           <div>
             <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Khoảng Giá</h4>
-            <div class="space-y-2 text-xs font-semibold">
-              <button 
-                (click)="setPriceRange(0, 15000000)"
-                [class.text-[#E30019]]="maxPrice() === 15000000"
-                class="block text-left w-full hover:text-[#E30019] py-1">
-                • Dưới 15 Triệu
-              </button>
-              <button 
-                (click)="setPriceRange(15000000, 35000000)"
-                [class.text-[#E30019]]="minPrice() === 15000000 && maxPrice() === 35000000"
-                class="block text-left w-full hover:text-[#E30019] py-1">
-                • Từ 15 - 35 Triệu
-              </button>
-              <button 
-                (click)="setPriceRange(35000000, 100000000)"
-                [class.text-[#E30019]]="minPrice() === 35000000"
-                class="block text-left w-full hover:text-[#E30019] py-1">
-                • Trên 35 Triệu
-              </button>
+            <div class="space-y-3 text-xs font-semibold">
+              <label
+                *ngFor="let range of priceRanges"
+                class="flex items-center gap-3 text-slate-700 cursor-pointer hover:text-[#E30019]">
+                <input
+                  type="checkbox"
+                  [checked]="isPriceRangeSelected(range.min, range.max)"
+                  (change)="setPriceRange(range.min, range.max)"
+                  class="w-5 h-5 rounded accent-[#E30019]" />
+                <span>{{ range.label }}</span>
+              </label>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              <p class="text-xs font-semibold text-slate-600">Hoặc nhập khoảng giá phù hợp với bạn:</p>
+              <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <input
+                  type="text"
+                  [ngModel]="formatPriceInput(minPrice() || 0)"
+                  (ngModelChange)="onMinPriceInput($event)"
+                  class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-center font-bold text-slate-700 focus:outline-none focus:border-[#E30019]" />
+                <span class="text-slate-400 font-black">~</span>
+                <input
+                  type="text"
+                  [ngModel]="formatPriceInput(maxPrice() || 50000000)"
+                  (ngModelChange)="onMaxPriceInput($event)"
+                  class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-center font-bold text-slate-700 focus:outline-none focus:border-[#E30019]" />
+              </div>
+              <div class="relative h-9 pt-4">
+                <div class="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-300"></div>
+                <div class="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#E30019]"
+                  [style.left.%]="priceMinPercent()"
+                  [style.right.%]="100 - priceMaxPercent()"></div>
+                <input type="range" min="0" max="50000000" step="100000"
+                  [ngModel]="minPrice() || 0"
+                  (ngModelChange)="onMinPriceInput($event)"
+                  class="price-range-input" />
+                <input type="range" min="0" max="50000000" step="100000"
+                  [ngModel]="maxPrice() || 50000000"
+                  (ngModelChange)="onMaxPriceInput($event)"
+                  class="price-range-input" />
+              </div>
             </div>
           </div>
         </aside>
 
         <!-- MAIN PRODUCT CATALOG -->
-        <main class="lg:col-span-9 space-y-6">
+        <main class="lg:col-span-9 space-y-5">
           <!-- Toolbar (Sort & Count) -->
-          <div class="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div class="bg-white border border-gray-100 rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="text-xs text-slate-600 font-bold">
-              Hiển thị <strong class="text-slate-900 font-black">{{ products().length }}</strong> sản phẩm
+              Hiển thị <strong class="text-slate-900 font-black">{{ products().length }}</strong> / {{ totalElements() }} sản phẩm
             </div>
 
             <!-- Sort By -->
-            <div class="flex items-center gap-2 text-xs">
+            <div class="flex items-center gap-2 text-xs flex-wrap justify-end">
               <span class="text-slate-500 font-semibold">Sắp xếp:</span>
               <select 
                 [ngModel]="sortBy()" 
@@ -158,11 +240,12 @@ import { Brand, Category, Product } from '../../models/product.model';
                 <option value="price_desc">Giá giảm dần</option>
               </select>
             </div>
+            </div>
           </div>
 
           <!-- Product Grid -->
-          <div *ngIf="products().length > 0; else emptyState" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-            <div *ngFor="let p of products()" class="p-5 flex flex-col justify-between group relative bg-white border border-red-500/80 rounded-3xl hover:shadow-xl hover:-translate-y-0.5 transition-all h-full min-h-[430px]">
+          <div *ngIf="products().length > 0; else emptyState" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div *ngFor="let p of products()" class="p-4 flex flex-col justify-between group relative bg-white border border-slate-200 rounded-3xl hover:border-red-500 hover:shadow-xl hover:-translate-y-0.5 transition-all h-full min-h-[405px]">
               <!-- Discount Badge -->
               <span *ngIf="p.discountPercentage" class="absolute top-3 left-3 z-10 bg-[#E30019] text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow">
                 -{{ p.discountPercentage }}%
@@ -170,8 +253,11 @@ import { Brand, Category, Product } from '../../models/product.model';
 
               <div>
                 <!-- Thumbnail -->
-                <a [routerLink]="['/products', p.slug]" class="block relative overflow-hidden rounded-2xl bg-slate-50 h-52 mb-4">
-                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 p-3" />
+                <button type="button" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 border border-slate-200 text-slate-400 hover:text-[#E30019] hover:border-red-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all">
+                  <i class="pi pi-heart text-xs"></i>
+                </button>
+                <a [routerLink]="['/products', p.slug]" class="block relative overflow-hidden rounded-2xl bg-slate-50 h-44 mb-4">
+                  <img [src]="getProductImage(p)" (error)="onProductImageError($event)" [alt]="p.name" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 p-4" />
                 </a>
 
                 <!-- Brand & Name -->
@@ -194,12 +280,29 @@ import { Brand, Category, Product } from '../../models/product.model';
 
                 <button 
                   (click)="addToCart(p, $event)"
-                  class="w-full bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs py-2.5 rounded-2xl transition-colors shadow cursor-pointer flex items-center justify-center gap-1.5">
+                  class="w-full h-10 bg-slate-950 hover:bg-[#E30019] text-white font-black text-xs rounded-2xl transition-colors shadow cursor-pointer flex items-center justify-center gap-1.5">
                   <i class="pi pi-shopping-cart text-xs"></i>
                   <span>THÊM VÀO GIỎ</span>
                 </button>
               </div>
             </div>
+          </div>
+
+          <div *ngIf="totalPages() > 1" class="flex items-center justify-center gap-2 pt-3">
+            <button type="button" (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 0" class="h-11 px-5 rounded-xl border border-slate-200 bg-white text-slate-900 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#E30019]">
+              Trước
+            </button>
+            <ng-container *ngFor="let page of paginationItems()">
+              <span *ngIf="page === '...'" class="px-2 text-slate-400 font-black">...</span>
+              <button *ngIf="page !== '...'" type="button" (click)="goToPage(+page - 1)"
+                [ngClass]="currentPage() === (+page - 1) ? 'border-slate-950 text-slate-950 ring-1 ring-slate-950' : 'border-slate-200 text-slate-900 hover:border-[#E30019] hover:text-[#E30019]'"
+                class="w-11 h-11 rounded-xl border bg-white font-bold transition-colors">
+                {{ page }}
+              </button>
+            </ng-container>
+            <button type="button" (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() >= totalPages() - 1" class="h-11 px-5 rounded-xl border border-slate-200 bg-white text-slate-900 font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#E30019]">
+              Sau
+            </button>
           </div>
 
           <!-- Empty State -->
@@ -214,7 +317,78 @@ import { Brand, Category, Product } from '../../models/product.model';
         </main>
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    .price-range-input {
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      height: 28px;
+      left: 0;
+      margin: 0;
+      pointer-events: none;
+      position: absolute;
+      right: 0;
+      top: 2px;
+      width: 100%;
+      z-index: 2;
+    }
+
+    .price-range-input::-webkit-slider-runnable-track {
+      background: transparent;
+      border: 0;
+      height: 4px;
+    }
+
+    .price-range-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #ffffff;
+      border: 4px solid #E30019;
+      border-radius: 9999px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+      cursor: pointer;
+      height: 18px;
+      margin-top: -7px;
+      pointer-events: auto;
+      width: 18px;
+    }
+
+    .price-range-input::-moz-range-track {
+      background: transparent;
+      border: 0;
+      height: 4px;
+    }
+
+    .price-range-input::-moz-range-thumb {
+      background: #ffffff;
+      border: 4px solid #E30019;
+      border-radius: 9999px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+      cursor: pointer;
+      height: 18px;
+      pointer-events: auto;
+      width: 18px;
+    }
+
+    .filter-sidebar-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+    }
+
+    .filter-sidebar-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .filter-sidebar-scroll::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.45);
+      border-radius: 9999px;
+    }
+
+    .filter-sidebar-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  `]
 })
 export class ProductListComponent implements OnInit {
   readonly productPlaceholder = 'assets/placeholder-product.svg';
@@ -222,21 +396,37 @@ export class ProductListComponent implements OnInit {
   categories = signal<Category[]>([]);
   brands = signal<Brand[]>([]);
   products = signal<Product[]>([]);
+  catalogProducts = signal<Product[]>([]);
+  totalElements = signal(0);
+  totalPages = signal(0);
+  currentPage = signal(0);
+  pageSize = signal(20);
+  showAllCategories = signal(false);
+  showAllBrands = signal(false);
   cartToast = signal<{ type: 'success' | 'error'; title: string; message: string; product?: Product } | null>(null);
 
   searchQuery: string = '';
-  selectedCategoryId = signal<number | undefined>(undefined);
-  selectedBrandId = signal<number | undefined>(undefined);
+  selectedCategoryIds = signal<number[]>([]);
+  selectedBrandIds = signal<number[]>([]);
   minPrice = signal<number | undefined>(undefined);
   maxPrice = signal<number | undefined>(undefined);
   search = signal<string | undefined>(undefined);
   sortBy = signal<string>('newest');
+  priceRanges = [
+    { label: 'Tất cả', min: undefined, max: undefined },
+    { label: 'Dưới 5 triệu', min: 0, max: 5000000 },
+    { label: '5 - 10 triệu', min: 5000000, max: 10000000 },
+    { label: '10 - 20 triệu', min: 10000000, max: 20000000 },
+    { label: '20 - 30 triệu', min: 20000000, max: 30000000 },
+    { label: 'Trên 30 triệu', min: 30000000, max: 100000000 }
+  ];
 
   constructor(
     private productService: ProductService,
     public cartService: CartService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private location: Location
   ) {}
 
   ngOnInit(): void {
@@ -245,6 +435,7 @@ export class ProductListComponent implements OnInit {
       this.resolveParams();
     });
     this.productService.getBrands().subscribe(res => this.brands.set(res));
+    this.productService.filterProducts({ page: 0, size: 1000 }).subscribe(res => this.catalogProducts.set(res.content));
 
     this.route.queryParams.subscribe(() => {
       this.resolveParams();
@@ -265,7 +456,18 @@ export class ProductListComponent implements OnInit {
 
   getProductImage(product?: Product | null): string {
     const thumbnail = product?.thumbnail?.trim();
+    if (this.isBrokenPlaceholderImage(thumbnail)) return this.productPlaceholder;
     return thumbnail ? thumbnail : this.productPlaceholder;
+  }
+
+  private isBrokenPlaceholderImage(url?: string): boolean {
+    if (!url) return true;
+    const normalized = url.toLowerCase();
+    return normalized.includes('placeholder') ||
+      normalized.includes('placehold.co') ||
+      normalized.includes('via.placeholder') ||
+      normalized.includes('no-image') ||
+      normalized.includes('default-product');
   }
 
   onProductImageError(event: Event): void {
@@ -277,7 +479,9 @@ export class ProductListComponent implements OnInit {
 
   private resolveParams(): void {
     const params = this.route.snapshot.queryParams;
-    if (params['category']) {
+    if (params['categoryIds']) {
+      this.selectedCategoryIds.set(this.parseIds(params['categoryIds']));
+    } else if (params['category']) {
       const catParam = params['category'].toString().toLowerCase().trim();
       const foundCat = this.categories().find(c => 
         (c.slug && c.slug.toLowerCase().trim() === catParam) || 
@@ -286,17 +490,21 @@ export class ProductListComponent implements OnInit {
         c.id.toString() === catParam
       );
       if (foundCat) {
-        this.selectedCategoryId.set(foundCat.id);
+        this.selectedCategoryIds.set([foundCat.id]);
       } else {
-        this.selectedCategoryId.set(params['categoryId'] ? Number(params['categoryId']) : undefined);
+        this.selectedCategoryIds.set(this.parseIds(params['categoryId']));
       }
     } else if (params['categoryId']) {
-      this.selectedCategoryId.set(Number(params['categoryId']));
+      this.selectedCategoryIds.set(this.parseIds(params['categoryId']));
     } else {
-      this.selectedCategoryId.set(undefined);
+      this.selectedCategoryIds.set([]);
     }
 
-    this.selectedBrandId.set(params['brandId'] ? Number(params['brandId']) : undefined);
+    this.selectedBrandIds.set(this.parseIds(params['brandIds'] || params['brandId']));
+    this.minPrice.set(params['minPrice'] ? Number(params['minPrice']) : undefined);
+    this.maxPrice.set(params['maxPrice'] ? Number(params['maxPrice']) : undefined);
+    this.sortBy.set(params['sort'] || params['sortBy'] || 'newest');
+    this.currentPage.set(params['page'] ? Number(params['page']) : 0);
     if (params['search']) {
       this.searchQuery = params['search'];
       this.search.set(params['search']);
@@ -309,60 +517,211 @@ export class ProductListComponent implements OnInit {
 
   loadProducts(): void {
     this.productService.filterProducts({
-      categoryId: this.selectedCategoryId(),
-      brandId: this.selectedBrandId(),
+      categoryIds: this.selectedCategoryIds(),
+      brandIds: this.selectedBrandIds(),
       minPrice: this.minPrice(),
       maxPrice: this.maxPrice(),
       search: this.search(),
       sortBy: this.sortBy(),
-      page: 0,
-      size: 20
+      page: this.currentPage(),
+      size: this.pageSize()
     }).subscribe(res => {
       this.products.set(res.content);
+      this.totalElements.set(res.totalElements || res.content.length);
+      this.totalPages.set(res.totalPages || 1);
     });
   }
 
   onSearchInput(): void {
     this.search.set(this.searchQuery.trim() || undefined);
-    this.loadProducts();
+    this.currentPage.set(0);
+    this.updateQueryParams();
   }
 
-  onCategorySelect(catId: number): void {
-    this.selectedCategoryId.set(catId);
-    const cat = this.categories().find(c => c.id === catId);
-    const catSlug = cat?.slug || (cat?.name ? this.toSlug(cat.name) : catId);
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { category: catSlug, categoryId: null },
-      queryParamsHandling: 'merge'
-    });
+  private parseIds(value: unknown): number[] {
+    return [...new Set(String(value || '').split(',').map(Number).filter(id => Number.isInteger(id) && id > 0))];
   }
 
-  onBrandSelect(brandId: number): void {
-    this.selectedBrandId.set(brandId);
-    this.loadProducts();
+  selectAllCategories(event: Event): void {
+    this.selectedCategoryIds.set([]);
+    (event.target as HTMLInputElement).checked = true;
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  selectAllBrands(event: Event): void {
+    this.selectedBrandIds.set([]);
+    (event.target as HTMLInputElement).checked = true;
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  onCategoryToggle(catId: number): void {
+    this.selectedCategoryIds.update(ids => ids.includes(catId) ? ids.filter(id => id !== catId) : [...ids, catId]);
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  onBrandToggle(brandId: number): void {
+    this.selectedBrandIds.update(ids => ids.includes(brandId) ? ids.filter(id => id !== brandId) : [...ids, brandId]);
+    this.currentPage.set(0);
+    this.updateQueryParams();
   }
 
   setPriceRange(min?: number, max?: number): void {
     this.minPrice.set(min);
     this.maxPrice.set(max);
-    this.loadProducts();
+    this.currentPage.set(0);
+    this.updateQueryParams();
   }
 
   onSortChange(value: string): void {
     this.sortBy.set(value);
-    this.loadProducts();
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  onMinPriceInput(value: number | string): void {
+    const price = Math.max(0, Math.min(this.parsePriceInput(value), 50000000));
+    const currentMax = this.maxPrice() || 50000000;
+    this.minPrice.set(price > 0 ? Math.min(price, currentMax) : undefined);
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  onMaxPriceInput(value: number | string): void {
+    const price = Math.max(0, Math.min(this.parsePriceInput(value), 50000000));
+    const currentMin = this.minPrice() || 0;
+    this.maxPrice.set(price > 0 ? Math.max(price, currentMin) : undefined);
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  loadMore(): void {
+    const nextPage = this.currentPage() + 1;
+    this.productService.filterProducts({
+      categoryIds: this.selectedCategoryIds(),
+      brandIds: this.selectedBrandIds(),
+      minPrice: this.minPrice(),
+      maxPrice: this.maxPrice(),
+      search: this.search(),
+      sortBy: this.sortBy(),
+      page: nextPage,
+      size: this.pageSize()
+    }).subscribe(res => {
+      this.products.set([...this.products(), ...res.content]);
+      this.totalElements.set(res.totalElements || this.products().length);
+      this.currentPage.set(nextPage);
+    });
+  }
+
+  goToPage(page: number): void {
+    if (page < 0 || page >= this.totalPages() || page === this.currentPage()) return;
+    this.currentPage.set(page);
+    this.updateQueryParams();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   resetFilters(): void {
-    this.selectedCategoryId.set(undefined);
-    this.selectedBrandId.set(undefined);
+    this.selectedCategoryIds.set([]);
+    this.selectedBrandIds.set([]);
     this.minPrice.set(undefined);
     this.maxPrice.set(undefined);
     this.search.set(undefined);
     this.searchQuery = '';
     this.sortBy.set('newest');
-    this.router.navigate(['/products']);
+    this.currentPage.set(0);
+    this.updateQueryParams();
+  }
+
+  visibleCategories(): Category[] {
+    return this.showAllCategories() ? this.categories() : this.categories().slice(0, 6);
+  }
+
+  visibleBrands(): Brand[] {
+    return this.showAllBrands() ? this.brands() : this.brands().slice(0, 6);
+  }
+
+  selectedCategories(): Category[] {
+    return this.categories().filter(cat => this.selectedCategoryIds().includes(cat.id));
+  }
+
+  selectedBrands(): Brand[] {
+    return this.brands().filter(brand => this.selectedBrandIds().includes(brand.id));
+  }
+
+  getCategoryCount(categoryId: number): number {
+    return this.catalogProducts().filter(p => p.category?.id === categoryId).length;
+  }
+
+  getBrandCount(brandId: number): number {
+    return this.catalogProducts().filter(p => p.brand?.id === brandId).length;
+  }
+
+  isPriceRangeSelected(min?: number, max?: number): boolean {
+    return this.minPrice() === min && this.maxPrice() === max;
+  }
+
+  formatPriceInput(value: number): string {
+    return `${value.toLocaleString('vi-VN')}đ`;
+  }
+
+  parsePriceInput(value: number | string): number {
+    if (typeof value === 'number') return value;
+    const parsed = Number(value.replace(/[^\d]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  priceMinPercent(): number {
+    const min = Math.min(this.minPrice() || 0, 50000000);
+    return Math.max(0, Math.min(100, (min / 50000000) * 100));
+  }
+
+  priceMaxPercent(): number {
+    const max = Math.min(this.maxPrice() || 50000000, 50000000);
+    return Math.max(0, Math.min(100, (max / 50000000) * 100));
+  }
+
+  priceFilterLabel(): string {
+    const selected = this.priceRanges.find(r => this.isPriceRangeSelected(r.min, r.max));
+    if (selected && selected.label !== 'Tất cả') return selected.label;
+    return `${this.formatPriceInput(this.minPrice() || 0)} - ${this.formatPriceInput(this.maxPrice() || 50000000)}`;
+  }
+
+  paginationItems(): Array<number | '...'> {
+    const total = this.totalPages();
+    const current = this.currentPage() + 1;
+    if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+
+    const pages: Array<number | '...'> = [1];
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    if (start > 2) pages.push('...');
+    for (let page = start; page <= end; page++) pages.push(page);
+    if (end < total - 1) pages.push('...');
+    pages.push(total);
+    return pages;
+  }
+
+  private updateQueryParams(): void {
+    const urlTree = this.router.createUrlTree([], {
+      relativeTo: this.route,
+      queryParams: {
+        category: null,
+        categoryIds: this.selectedCategoryIds().join(',') || null,
+        categoryId: null,
+        brandId: null,
+        brandIds: this.selectedBrandIds().join(',') || null,
+        search: this.search() || null,
+        minPrice: this.minPrice() || null,
+        maxPrice: this.maxPrice() || null,
+        sort: this.sortBy() !== 'newest' ? this.sortBy() : null,
+        page: this.currentPage() > 0 ? this.currentPage() : null
+      },
+      queryParamsHandling: 'merge'
+    });
+    this.location.replaceState(this.router.serializeUrl(urlTree));
+    this.loadProducts();
   }
 
   addToCart(product: Product, event: Event): void {

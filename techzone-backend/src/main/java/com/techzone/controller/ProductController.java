@@ -34,6 +34,8 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<Page<Product>> filterProducts(
+            @RequestParam(required = false) List<Long> categoryIds,
+            @RequestParam(required = false) List<Long> brandIds,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) BigDecimal minPrice,
@@ -42,7 +44,10 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sortBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        return ResponseEntity.ok(productService.filterProducts(categoryId, brandId, minPrice, maxPrice, search, sortBy, page, size));
+        return ResponseEntity.ok(productService.filterProducts(
+                categoryIds != null ? categoryIds : categoryId == null ? List.of() : List.of(categoryId),
+                brandIds != null ? brandIds : brandId == null ? List.of() : List.of(brandId),
+                minPrice, maxPrice, search, sortBy, page, size));
     }
 
     @GetMapping("/search")

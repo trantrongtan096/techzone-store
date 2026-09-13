@@ -27,6 +27,10 @@ export class ProductService {
     return this.http.get<Brand[]>(`${this.apiUrl}/brands`);
   }
 
+  getBrandsByCategory(categoryId: number): Observable<Brand[]> {
+    return this.http.get<Brand[]>(`${this.apiUrl}/categories/${categoryId}/brands`);
+  }
+
   getFlashSaleProducts(): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.apiUrl}/products/flash-sale`);
   }
@@ -44,6 +48,8 @@ export class ProductService {
   }
 
   filterProducts(params: {
+    categoryIds?: number[];
+    brandIds?: number[];
     categoryId?: number;
     brandId?: number;
     minPrice?: number;
@@ -54,6 +60,8 @@ export class ProductService {
     size?: number;
   }): Observable<ProductPageResponse> {
     let httpParams = new HttpParams();
+    if (params.categoryIds?.length) httpParams = httpParams.set('categoryIds', params.categoryIds.join(','));
+    if (params.brandIds?.length) httpParams = httpParams.set('brandIds', params.brandIds.join(','));
     if (params.categoryId) httpParams = httpParams.set('categoryId', params.categoryId.toString());
     if (params.brandId) httpParams = httpParams.set('brandId', params.brandId.toString());
     if (params.minPrice) httpParams = httpParams.set('minPrice', params.minPrice.toString());
