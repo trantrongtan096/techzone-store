@@ -1,23 +1,16 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { AdminService } from '../../../services/admin.service';
 
 import { AdminHeaderComponent } from '../../../components/admin-header/admin-header.component';
-
-export interface IconOption {
-  class: string;
-  name: string;
-  provider: 'fa' | 'pi';
-  category?: 'pc' | 'gear' | 'general';
-  keywords?: string[];
-}
+import { IconPickerComponent } from '../../../components/icon-picker/icon-picker.component';
+import { CATEGORY_ICON_FALLBACK, resolveCategoryIcon } from '../../../components/icon-picker/category-icon-registry';
 
 @Component({
   selector: 'app-admin-category-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, AdminHeaderComponent],
+  imports: [CommonModule, FormsModule, AdminHeaderComponent, IconPickerComponent],
   template: `
     <!-- Toast Notification Banner (Fixed Top-Center - Absolutely Zero Layout Shift) -->
     <div *ngIf="toastMessage()"
@@ -138,7 +131,7 @@ export interface IconOption {
                 <td class="p-4">
                   <div class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-red-400 text-base shadow-xs overflow-hidden">
                     <img *ngIf="isImageUrl(cat.icon)" [src]="cat.icon" class="w-6 h-6 object-contain" [alt]="cat.name" />
-                    <i *ngIf="!isImageUrl(cat.icon)" [class]="cat.icon || 'pi pi-tag'"></i>
+                    <i *ngIf="!isImageUrl(cat.icon)" [class]="categoryIcon(cat.icon, cat.name, cat.slug)"></i>
                   </div>
                 </td>
 
@@ -305,7 +298,7 @@ export interface IconOption {
                 <!-- Preview Box -->
                 <div class="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-red-400 text-lg shadow-xs shrink-0 overflow-hidden">
                   <img *ngIf="isImageUrl(formData.icon)" [src]="formData.icon" class="w-6 h-6 object-contain" alt="Icon Preview" />
-                  <i *ngIf="!isImageUrl(formData.icon)" [class]="formData.icon || 'fa-solid fa-tag'"></i>
+                  <i *ngIf="!isImageUrl(formData.icon)" [class]="categoryIcon(formData.icon, formData.name, formData.slug)"></i>
                 </div>
 
                 <!-- Input -->
@@ -313,8 +306,9 @@ export interface IconOption {
                   type="text"
                   [(ngModel)]="formData.icon"
                   name="icon"
-                  placeholder="VD: fa-solid fa-laptop hoặc https://.../logo.svg"
-                  class="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono" />
+                  readonly
+                  placeholder="Chọn icon từ thư viện"
+                  class="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono cursor-default" />
 
                 <!-- Icon Picker Trigger -->
                 <button
@@ -322,7 +316,7 @@ export interface IconOption {
                   (click)="showIconPicker.set(true)"
                   class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0">
                   <i class="fa-solid fa-icons text-amber-400"></i>
-                  <span>Chọn / Upload</span>
+                  <span>Chọn icon</span>
                 </button>
               </div>
             </div>
@@ -399,182 +393,11 @@ export interface IconOption {
         </div>
       </div>
 
-      <!-- ICON PICKER & SVG UPLOAD MODAL -->
-      <div *ngIf="showIconPicker()" class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fade-in">
-        <div class="bg-[#111827] border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl relative flex flex-col overflow-hidden text-slate-200">
-
-          <!-- Sticky Header -->
-          <div class="p-5 border-b border-slate-800 bg-[#111827] shrink-0 space-y-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <i class="fa-solid fa-icons text-red-500"></i>
-                  <span>Bộ Chọn Icon JSON & Upload SVG Logo Tùy Chỉnh</span>
-                </h3>
-                <p class="text-xs text-slate-400">Chọn Icon từ dữ liệu JSON động hoặc tự tải lên logo thương hiệu SVG</p>
-              </div>
-
-              <button
-                (click)="showIconPicker.set(false)"
-                class="text-slate-400 hover:text-white w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0">
-                <i class="pi pi-times"></i>
-              </button>
-            </div>
-
-            <!-- Search & Filter Tab Controls -->
-            <div class="flex flex-col sm:flex-row items-center gap-2.5">
-              <div class="relative flex-grow w-full" *ngIf="activeTab !== 'upload'">
-                <input
-                  type="text"
-                  [(ngModel)]="iconSearchQuery"
-                  placeholder="Tìm kiếm trong 2,000+ icon (laptop, pc, mouse, rog, msi...)..."
-                  class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-medium" />
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-              </div>
-
-              <!-- Filter Tabs -->
-              <div class="flex items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-xl shrink-0 text-[11px] font-bold overflow-x-auto max-w-full">
-                <button
-                  (click)="activeTab = 'all'; iconProviderFilter = 'all'"
-                  [class]="activeTab === 'all' && iconProviderFilter === 'all' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
-                  class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap">
-                  Tất cả ({{ allIcons.length }})
-                </button>
-                <button
-                  (click)="activeTab = 'all'; iconProviderFilter = 'fa'"
-                  [class]="activeTab === 'all' && iconProviderFilter === 'fa' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
-                  class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1">
-                  <i class="fa-brands fa-font-awesome text-white"></i> FontAwesome
-                </button>
-                <button
-                  (click)="activeTab = 'upload'"
-                  [class]="activeTab === 'upload' ? 'bg-[#E30019] text-white font-bold shadow-xs' : 'text-slate-400 hover:text-white'"
-                  class="px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1">
-                  <i class="fa-solid fa-upload text-white"></i> Upload SVG / Logo
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab Content Container -->
-          <div class="p-5 flex-grow overflow-y-auto custom-scrollbar bg-slate-950">
-
-            <!-- TAB 1 & 2: ICON GRID (JSON DYNAMIC) -->
-            <div *ngIf="activeTab !== 'upload'" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-              <button
-                *ngFor="let iconOpt of filteredIcons()"
-                type="button"
-                (click)="selectIcon(iconOpt.class)"
-                [class.bg-[#E30019]]="formData.icon === iconOpt.class"
-                [class.text-white]="formData.icon === iconOpt.class"
-                [class.border-red-500]="formData.icon === iconOpt.class"
-                [class.shadow-lg]="formData.icon === iconOpt.class"
-                [class.bg-slate-900]="formData.icon !== iconOpt.class"
-                [class.text-slate-300]="formData.icon !== iconOpt.class"
-                [class.border-slate-800]="formData.icon !== iconOpt.class"
-                class="p-3 border rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer group h-20 relative">
-
-                <span
-                  [class]="iconOpt.provider === 'fa' ? 'bg-blue-950 text-blue-400 border border-blue-500/30' : 'bg-red-950 text-red-400 border border-red-500/30'"
-                  class="absolute top-1 right-1 text-[8px] font-black uppercase px-1 rounded">
-                  {{ iconOpt.provider }}
-                </span>
-
-                <i [class]="iconOpt.class" class="text-2xl transition-transform group-hover:scale-110"></i>
-
-                <span class="text-[9px] font-medium truncate w-full text-center tracking-tighter opacity-80">
-                  {{ iconOpt.name }}
-                </span>
-              </button>
-            </div>
-
-            <!-- TAB 3: CUSTOM UPLOAD SVG / IMAGE LOGO -->
-            <div *ngIf="activeTab === 'upload'" class="space-y-5 max-w-md mx-auto py-2">
-              <div class="bg-white border-2 border-dashed border-slate-300 hover:border-red-500 rounded-2xl p-6 text-center space-y-3 transition-colors cursor-pointer relative">
-                <input
-                  type="file"
-                  accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp"
-                  (change)="onSvgFileUpload($event)"
-                  class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-
-                <div class="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center mx-auto text-xl">
-                  <i class="fa-solid fa-cloud-arrow-up"></i>
-                </div>
-
-                <div>
-                  <h4 class="text-xs font-bold text-slate-800">Tải lên file SVG hoặc Ảnh Logo</h4>
-                  <p class="text-[11px] text-slate-400 mt-0.5">Hỗ trợ định dạng .SVG, .PNG, .JPG, .WEBP (tự chuyển sang Base64 Data URL)</p>
-                </div>
-              </div>
-
-              <!-- OR enter Image URL -->
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-                <div class="relative flex justify-center text-[10px] uppercase font-bold text-slate-400"><span class="bg-slate-50 px-2">Hoặc nhập URL Logo trực tiếp</span></div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Đường dẫn URL Logo SVG / Ảnh</label>
-                <input
-                  type="text"
-                  [(ngModel)]="customSvgUrl"
-                  placeholder="https://rog.asus.com/logo.svg hoặc /assets/logos/msi.svg"
-                  class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-red-500 font-mono" />
-                <button
-                  type="button"
-                  (click)="applyCustomSvgUrl()"
-                  class="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2 rounded-xl transition-all cursor-pointer">
-                  Sử dụng URL Logo Này
-                </button>
-              </div>
-
-              <!-- Preview Uploaded SVG/Logo -->
-              <div *ngIf="isImageUrl(formData.icon)" class="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 p-2 overflow-hidden">
-                  <img [src]="formData.icon" class="w-full h-full object-contain" alt="Uploaded Preview" />
-                </div>
-                <div>
-                  <span class="block text-xs font-bold text-emerald-600">Đã chọn Logo tùy chỉnh thành công!</span>
-                  <span class="block text-[10px] font-mono text-slate-400 truncate max-w-xs">{{ formData.icon }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Empty State -->
-            <div *ngIf="activeTab !== 'upload' && filteredIcons().length === 0" class="py-12 text-center text-slate-400 space-y-2">
-              <i class="fa-solid fa-magnifying-glass text-3xl opacity-40"></i>
-              <p class="text-xs font-bold">Không tìm thấy icon nào với từ khóa "{{ iconSearchQuery }}"</p>
-            </div>
-          </div>
-
-          <!-- Sticky Footer -->
-          <div class="p-4 border-t border-slate-100 bg-white shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div class="flex items-center gap-3 text-slate-500 font-medium w-full sm:w-auto">
-              <span>Đang chọn:</span>
-              <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg font-mono text-slate-800 font-bold max-w-xs truncate">
-                <img *ngIf="isImageUrl(formData.icon)" [src]="formData.icon" class="w-4 h-4 object-contain" alt="Selected Icon" />
-                <i *ngIf="!isImageUrl(formData.icon)" [class]="formData.icon || 'fa-solid fa-tag'" class="text-red-600"></i>
-                <span class="truncate">{{ formData.icon || 'Chưa chọn' }}</span>
-              </div>
-
-              <a
-                href="https://fontawesome.com/search?o=r&m=free"
-                target="_blank"
-                class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1 ml-auto sm:ml-2">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Tra cứu 2,000+ Icon FontAwesome
-              </a>
-            </div>
-
-            <button
-              type="button"
-              (click)="showIconPicker.set(false)"
-              class="px-5 py-2 font-bold text-xs text-white bg-slate-800 hover:bg-slate-900 rounded-xl cursor-pointer shadow-md transition-all w-full sm:w-auto">
-              Đồng Ý / Đóng
-            </button>
-          </div>
-
-        </div>
-      </div>
+      <app-icon-picker
+        *ngIf="showIconPicker()"
+        [(selectedIcon)]="formData.icon"
+        (close)="showIconPicker.set(false)">
+      </app-icon-picker>
 
       <!-- Custom Bulk Delete Confirmation Modal -->
       <div *ngIf="showDeleteConfirmModal()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -604,6 +427,7 @@ export interface IconOption {
   `
 })
 export class AdminCategoryListComponent implements OnInit {
+  readonly fallbackCategoryIcon = CATEGORY_ICON_FALLBACK;
   categories = signal<any[]>([]);
   showModal = signal(false);
   showIconPicker = signal(false);
@@ -612,7 +436,7 @@ export class AdminCategoryListComponent implements OnInit {
   formData = {
     name: '',
     slug: '',
-    icon: 'fa-solid fa-laptop',
+    icon: 'fa-solid fa-box-open',
     priority: 1,
     isActive: true,
     showInNavbar: false,
@@ -621,10 +445,6 @@ export class AdminCategoryListComponent implements OnInit {
   isSlugCustomized = false;
 
   searchQuery = signal('');
-  iconSearchQuery = '';
-  iconProviderFilter: 'all' | 'fa' | 'pi' = 'all';
-  activeTab: 'all' | 'upload' = 'all';
-  customSvgUrl = '';
 
   selectedCategoryIds = signal<number[]>([]);
   showDeleteConfirmModal = signal(false);
@@ -635,91 +455,12 @@ export class AdminCategoryListComponent implements OnInit {
   draggedIndex: number | null = null;
   dragOverIndex: number | null = null;
 
-  // Built-in Icon Collection (FontAwesome 6 + PrimeIcons)
-  allIcons: IconOption[] = [
-    { class: 'fa-solid fa-laptop', name: 'Laptop', provider: 'fa', category: 'pc', keywords: ['laptop', 'may tinh'] },
-    { class: 'fa-solid fa-laptop-code', name: 'Laptop Lập Trình', provider: 'fa', category: 'pc', keywords: ['code', 'developer'] },
-    { class: 'fa-solid fa-desktop', name: 'Màn Hình PC', provider: 'fa', category: 'pc', keywords: ['desktop', 'monitor', 'pc'] },
-    { class: 'fa-solid fa-computer', name: 'Cây PC / Case', provider: 'fa', category: 'pc', keywords: ['case', 'pc', 'vo may'] },
-    { class: 'fa-solid fa-computer-mouse', name: 'Chuột Máy Tính', provider: 'fa', category: 'gear', keywords: ['chuot', 'mouse'] },
-    { class: 'fa-solid fa-keyboard', name: 'Bàn Phím Cơ', provider: 'fa', category: 'gear', keywords: ['ban phim', 'keyboard'] },
-    { class: 'fa-solid fa-headphones', name: 'Tai Nghe', provider: 'fa', category: 'gear', keywords: ['tai nghe', 'headphones'] },
-    { class: 'fa-solid fa-headset', name: 'Tai Nghe Gaming', provider: 'fa', category: 'gear', keywords: ['headset', 'mic'] },
-    { class: 'fa-solid fa-gamepad', name: 'Tay Cầm Game', provider: 'fa', category: 'gear', keywords: ['tay cam', 'gamepad'] },
-    { class: 'fa-solid fa-microchip', name: 'CPU / Chip VXL', provider: 'fa', category: 'pc', keywords: ['cpu', 'chip'] },
-    { class: 'fa-solid fa-memory', name: 'Bộ Nhớ RAM', provider: 'fa', category: 'pc', keywords: ['ram', 'bo nho'] },
-    { class: 'fa-solid fa-hard-drive', name: 'Ổ Cứng SSD / HDD', provider: 'fa', category: 'pc', keywords: ['ssd', 'hdd'] },
-    { class: 'fa-solid fa-fan', name: 'Quạt Tản Nhiệt', provider: 'fa', category: 'pc', keywords: ['quat', 'fan', 'tan nhiet'] },
-    { class: 'fa-solid fa-power-off', name: 'Nguồn PSU', provider: 'fa', category: 'pc', keywords: ['nguon', 'psu'] },
-    { class: 'fa-solid fa-droplet', name: 'Tản Nhiệt Nước', provider: 'fa', category: 'pc', keywords: ['tan nhiet nuoc', 'aio'] },
-    { class: 'fa-solid fa-mobile-screen-button', name: 'Điện Thoại Mobile', provider: 'fa', category: 'general', keywords: ['mobile', 'phone'] },
-    { class: 'fa-solid fa-tablet-screen-button', name: 'Máy Tính Bảng', provider: 'fa', category: 'general', keywords: ['tablet', 'ipad'] },
-    { class: 'fa-solid fa-print', name: 'Máy In', provider: 'fa', category: 'general', keywords: ['may in', 'printer'] },
-    { class: 'fa-solid fa-tv', name: 'Tivi / Monitor', provider: 'fa', category: 'pc', keywords: ['tv', 'tivi'] },
-    { class: 'fa-solid fa-plug', name: 'Dây Cáp / Nguồn', provider: 'fa', category: 'gear', keywords: ['cap', 'plug'] },
-    { class: 'fa-solid fa-vr-cardboard', name: 'Kính VR', provider: 'fa', category: 'gear', keywords: ['vr', 'kinh vr'] },
-    { class: 'fa-solid fa-charging-station', name: 'Sạc / Hub', provider: 'fa', category: 'gear', keywords: ['sac', 'hub'] },
-    { class: 'fa-solid fa-wifi', name: 'Wifi Router', provider: 'fa', category: 'general', keywords: ['wifi', 'router'] },
-    { class: 'fa-solid fa-network-wired', name: 'Cáp Mạng LAN', provider: 'fa', category: 'general', keywords: ['lan', 'cap mang'] },
-    { class: 'fa-solid fa-compact-disc', name: 'Đĩa CD / DVD', provider: 'fa', category: 'gear', keywords: ['dia', 'cd'] },
-    { class: 'fa-solid fa-sd-card', name: 'Thẻ Nhớ SD', provider: 'fa', category: 'gear', keywords: ['the nho', 'sd'] },
-    { class: 'fa-solid fa-sim-card', name: 'Sim 4G / 5G', provider: 'fa', category: 'general', keywords: ['sim'] },
-    { class: 'fa-solid fa-database', name: 'Máy Chủ Server', provider: 'fa', category: 'pc', keywords: ['server', "may chu"] },
-    { class: 'fa-solid fa-camera', name: 'Webcam / Camera', provider: 'fa', category: 'gear', keywords: ['camera', 'webcam'] },
-    { class: 'fa-solid fa-microphone', name: 'Microphone Streamer', provider: 'fa', category: 'gear', keywords: ['mic', 'micro'] },
-    { class: 'fa-solid fa-ghost', name: 'Bóng Ma Gaming', provider: 'fa', category: 'gear', keywords: ['ghost', 'gaming'] },
-    { class: 'fa-solid fa-dragon', name: 'Rồng Gaming', provider: 'fa', category: 'gear', keywords: ['dragon', 'msi'] },
-    { class: 'fa-solid fa-trophy', name: 'Cúp / Giải Thưởng', provider: 'fa', category: 'general', keywords: ['cup', 'top'] },
-    { class: 'fa-solid fa-crown', name: 'Vương Miện Premium', provider: 'fa', category: 'general', keywords: ['crown', 'vip'] },
-    { class: 'fa-solid fa-bolt', name: 'Flash Sale', provider: 'fa', category: 'general', keywords: ['sale', 'bolt'] },
-    { class: 'fa-solid fa-box-open', name: 'Hộp Hàng', provider: 'fa', category: 'general', keywords: ['box', 'hop'] },
-    { class: 'fa-solid fa-fire', name: 'Hot Sale', provider: 'fa', category: 'general', keywords: ['hot', 'fire'] },
-    { class: 'fa-solid fa-shield-halved', name: 'Bảo Hành', provider: 'fa', category: 'general', keywords: ['bao hanh'] },
-    { class: 'fa-solid fa-sliders', name: 'Cấu Hình', provider: 'fa', category: 'general', keywords: ['config'] },
-    { class: 'fa-solid fa-tag', name: 'Thẻ Khuyến Mãi', provider: 'fa', category: 'general', keywords: ['tag'] },
-    { class: 'fa-solid fa-truck-fast', name: 'Giao Hàng Nhanh', provider: 'fa', category: 'general', keywords: ['giao hang'] },
-    { class: 'fa-solid fa-cart-shopping', name: 'Giỏ Hàng', provider: 'fa', category: 'general', keywords: ['cart'] },
-    { class: 'fa-brands fa-apple', name: 'Apple / macOS', provider: 'fa', category: 'pc', keywords: ['apple', 'mac'] },
-    { class: 'fa-brands fa-windows', name: 'Windows', provider: 'fa', category: 'pc', keywords: ['windows', 'pc'] },
-    { class: 'fa-brands fa-android', name: 'Android', provider: 'fa', category: 'general', keywords: ['android'] },
-    { class: 'fa-brands fa-playstation', name: 'PlayStation', provider: 'fa', category: 'gear', keywords: ['ps5', 'sony'] },
-    { class: 'fa-brands fa-xbox', name: 'Xbox Gaming', provider: 'fa', category: 'gear', keywords: ['xbox'] },
-    { class: 'fa-brands fa-bluetooth', name: 'Bluetooth', provider: 'fa', category: 'gear', keywords: ['bluetooth'] },
-    { class: 'fa-brands fa-usb', name: 'USB Type-C', provider: 'fa', category: 'gear', keywords: ['usb'] },
-    { class: 'pi pi-desktop', name: 'Desktop (PI)', provider: 'pi', category: 'pc', keywords: ['desktop'] },
-    { class: 'pi pi-laptop', name: 'Laptop (PI)', provider: 'pi', category: 'pc', keywords: ['laptop'] },
-    { class: 'pi pi-mobile', name: 'Mobile (PI)', provider: 'pi', category: 'general', keywords: ['mobile'] },
-    { class: 'pi pi-tablet', name: 'Tablet (PI)', provider: 'pi', category: 'general', keywords: ['tablet'] },
-    { class: 'pi pi-headphones', name: 'Headphones (PI)', provider: 'pi', category: 'gear', keywords: ['headphones'] },
-    { class: 'pi pi-print', name: 'Print (PI)', provider: 'pi', category: 'general', keywords: ['print'] },
-    { class: 'pi pi-camera', name: 'Camera (PI)', provider: 'pi', category: 'general', keywords: ['camera'] },
-    { class: 'pi pi-server', name: 'Server (PI)', provider: 'pi', category: 'pc', keywords: ['server'] },
-    { class: 'pi pi-tag', name: 'Tag (PI)', provider: 'pi', category: 'general', keywords: ['tag'] },
-    { class: 'pi pi-box', name: 'Box (PI)', provider: 'pi', category: 'general', keywords: ['box'] }
-  ];
-
-  constructor(
-    private adminService: AdminService,
-    private http: HttpClient
-  ) {}
+  constructor(private adminService: AdminService) {}
 
   ngOnInit(): void {
     this.loadCategories();
-    this.loadJsonIcons();
   }
 
-  loadJsonIcons(): void {
-    this.http.get<IconOption[]>('assets/data/fontawesome-icons.json').subscribe({
-      next: (res) => {
-        if (res && res.length > 0) {
-          this.allIcons = res;
-        }
-      },
-      error: () => {
-        // Keep built-in collection on error
-      }
-    });
-  }
 
   loadCategories(): void {
     this.adminService.getAllCategories().subscribe({
@@ -743,29 +484,6 @@ export class AdminCategoryListComponent implements OnInit {
     return list;
   });
 
-  filteredIcons(): IconOption[] {
-    let list = this.allIcons;
-
-    if (this.iconProviderFilter !== 'all') {
-      list = list.filter(icon => icon.provider === this.iconProviderFilter);
-    }
-
-    const q = this.iconSearchQuery ? this.iconSearchQuery.trim().toLowerCase() : '';
-    if (q) {
-      list = list.filter(icon =>
-        icon.name.toLowerCase().includes(q) ||
-        icon.class.toLowerCase().includes(q) ||
-        (icon.keywords && icon.keywords.some(k => k.toLowerCase().includes(q)))
-      );
-    }
-
-    return list;
-  }
-
-  selectIcon(iconClass: string): void {
-    this.formData.icon = iconClass;
-    this.showIconPicker.set(false);
-  }
 
   isImageUrl(icon?: string): boolean {
     if (!icon) return false;
@@ -778,27 +496,15 @@ export class AdminCategoryListComponent implements OnInit {
            /\.(svg|png|jpg|jpeg|webp)$/i.test(str);
   }
 
-  onSvgFileUpload(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.formData.icon = e.target.result;
-        this.showToast('Đã tải lên logo SVG/Ảnh thành công!');
-        this.showIconPicker.set(false);
-      };
-      reader.readAsDataURL(file);
-    }
+  categoryIcon(icon?: string, categoryName?: string, categorySlug?: string): string {
+    return resolveCategoryIcon(icon, categoryName, categorySlug);
   }
 
-  applyCustomSvgUrl(): void {
-    if (this.customSvgUrl && this.customSvgUrl.trim()) {
-      this.formData.icon = this.customSvgUrl.trim();
-      this.showToast('Đã áp dụng URL Logo thành công!');
-      this.showIconPicker.set(false);
-    }
+  isIconClass(icon?: string): boolean {
+    if (!icon) return false;
+    return icon.startsWith('pi ') || icon.startsWith('fa-');
   }
+
 
   // Slug Generation Logic
   toSlug(input: string): string {
@@ -945,7 +651,7 @@ export class AdminCategoryListComponent implements OnInit {
       this.formData = {
         name: cat.name,
         slug: cat.slug || '',
-        icon: cat.icon || 'fa-solid fa-tag',
+        icon: cat.icon || this.fallbackCategoryIcon,
         priority: cat.priority || 1,
         isActive: cat.isActive !== false,
         showInNavbar: cat.showInNavbar === true,
@@ -957,7 +663,7 @@ export class AdminCategoryListComponent implements OnInit {
       this.formData = {
         name: '',
         slug: '',
-        icon: 'fa-solid fa-laptop',
+        icon: this.fallbackCategoryIcon,
         priority: this.categories().length + 1,
         isActive: true,
         showInNavbar: false,

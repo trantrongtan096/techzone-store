@@ -1,5 +1,6 @@
 package com.techzone.controller;
 
+import com.techzone.dto.BrandDTO;
 import com.techzone.entity.Brand;
 import com.techzone.entity.Category;
 import com.techzone.service.CategoryService;
@@ -34,5 +35,10 @@ public class CategoryController {
     @GetMapping("/brands")
     public ResponseEntity<List<Brand>> getBrands() {
         return ResponseEntity.ok(categoryService.getAllBrands());
+    }
+
+    @GetMapping("/categories/{categoryId}/brands")
+    public ResponseEntity<List<BrandDTO>> getBrandsByCategory(@PathVariable Long categoryId) {
+        return ResponseEntity.ok(categoryService.getBrandsByCategory(categoryId));
     }
 }

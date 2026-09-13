@@ -9,6 +9,7 @@ export interface BreadcrumbItem {
 
 @Component({
   selector: 'app-admin-header',
+  host: { class: 'block' },
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `

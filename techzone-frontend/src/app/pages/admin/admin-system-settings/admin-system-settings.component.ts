@@ -18,7 +18,7 @@ import { AdminService } from '../../../services/admin.service';
       <span class="text-xs font-bold">{{ toastMessage()?.text }}</span>
     </div>
 
-    <div class="space-y-6 animate-fade-in text-slate-100 min-h-screen">
+    <div class="space-y-5 animate-fade-in text-slate-100">
       <!-- Title & Header -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#111827] p-5 rounded-2xl border border-slate-800 shadow-xl">
         <div>

@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Product> {
 
     Optional<Product> findBySlug(String slug);
     Optional<Product> findBySku(String sku);
@@ -78,6 +78,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByCategoryId(Long categoryId);
 
     boolean existsByBrandId(Long brandId);
+
+    @Query("SELECT p.brand.id, p.brand.name, COUNT(p.id) FROM Product p WHERE " +
+           "p.category.id = :categoryId AND p.brand IS NOT NULL AND " +
+           "(p.isActive IS NULL OR p.isActive = true) " +
+           "GROUP BY p.brand.id, p.brand.name " +
+           "HAVING COUNT(p.id) > 0 " +
+           "ORDER BY p.brand.name ASC")
+    List<Object[]> findBrandCountsByCategoryId(@Param("categoryId") Long categoryId);
 
     @Modifying
     @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity - :quantity WHERE p.id = :productId AND (p.stockQuantity IS NOT NULL AND p.stockQuantity >= :quantity)")

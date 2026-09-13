@@ -87,7 +87,9 @@ import { RouteManagementService } from '../../services/route-management.service'
               <a 
                 [routerLink]="['/admin/homepage-builder']" title="Sắp Xếp Thứ Tự Khối"
                 [queryParams]="{ tab: 'LAYOUT' }"
-                routerLinkActive="bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold"
+                [ngClass]="{
+                  'bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold': isHomepageBuilderTabActive('LAYOUT')
+                }"
                 class="flex items-center gap-3 px-4 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-xs pl-6">
                 <i class="pi pi-sort-alt text-sm text-purple-400"></i>
                 <span>Sắp Xếp Thứ Tự Khối</span>
@@ -96,7 +98,9 @@ import { RouteManagementService } from '../../services/route-management.service'
               <a 
                 [routerLink]="['/admin/homepage-builder']" title="Thanh Cam Kết (USPs)"
                 [queryParams]="{ tab: 'USPS' }"
-                routerLinkActive="bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold"
+                [ngClass]="{
+                  'bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold': isHomepageBuilderTabActive('USPS')
+                }"
                 class="flex items-center gap-3 px-4 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-xs pl-6">
                 <i class="pi pi-shield text-sm text-emerald-400"></i>
                 <span>Thanh Cam Kết (USPs)</span>
@@ -105,7 +109,9 @@ import { RouteManagementService } from '../../services/route-management.service'
               <a 
                 [routerLink]="['/admin/homepage-builder']" title="Cụm Sản Phẩm (Shelves)"
                 [queryParams]="{ tab: 'SHELVES' }"
-                routerLinkActive="bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold"
+                [ngClass]="{
+                  'bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold': isHomepageBuilderTabActive('SHELVES')
+                }"
                 class="flex items-center gap-3 px-4 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-xs pl-6">
                 <i class="pi pi-tags text-sm text-blue-400"></i>
                 <span>Cụm Sản Phẩm (Shelves)</span>
@@ -114,7 +120,9 @@ import { RouteManagementService } from '../../services/route-management.service'
               <a 
                 [routerLink]="['/admin/homepage-builder']" title="Thương Hiệu & Tin Tức"
                 [queryParams]="{ tab: 'BLOGS_BRANDS' }"
-                routerLinkActive="bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold"
+                [ngClass]="{
+                  'bg-[#E30019]/20 text-white border-r-4 border-[#E30019] font-bold': isHomepageBuilderTabActive('BLOGS_BRANDS')
+                }"
                 class="flex items-center gap-3 px-4 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all text-xs pl-6">
                 <i class="pi pi-building text-sm text-amber-400"></i>
                 <span>Thương Hiệu & Tin Tức</span>
@@ -174,7 +182,7 @@ import { RouteManagementService } from '../../services/route-management.service'
       <!-- MAIN CONTENT WRAPPER (h-screen overflow-hidden) -->
       <div class="flex-1 h-screen flex flex-col min-w-0 bg-[#0F172A] overflow-hidden">
         <!-- TOP NAVBAR (GLOBAL ADMIN HEADER) -->
-        <header class="bg-[#111827]/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 z-20">
+        <header class="relative z-20 bg-[#111827] border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md">
           <div class="flex items-center gap-3">
             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
             <h1 class="text-xs font-black text-slate-200 uppercase tracking-widest flex items-center gap-2">
@@ -216,7 +224,7 @@ import { RouteManagementService } from '../../services/route-management.service'
         </header>
 
         <!-- PAGE CONTENT CONTAINER (Independent Scrollbar inside main ONLY) -->
-        <main class="p-6 flex-1 overflow-y-auto custom-scrollbar">
+        <main class="px-6 pt-3 pb-6 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
           <router-outlet></router-outlet>
         </main>
       </div>
@@ -238,6 +246,15 @@ export class AdminLayoutComponent {
 
   isSuperAdmin(): boolean {
     return this.authService.currentUser()?.role === 'ROLE_SUPER_ADMIN';
+  }
+
+  isHomepageBuilderTabActive(tab: 'LAYOUT' | 'USPS' | 'SHELVES' | 'BLOGS_BRANDS'): boolean {
+    const urlTree = this.router.parseUrl(this.router.url);
+    const primary = urlTree.root.children['primary']?.segments
+      .map(segment => segment.path)
+      .join('/');
+    if (primary !== 'admin/homepage-builder') return false;
+    return (urlTree.queryParams['tab'] || 'LAYOUT') === tab;
   }
 
   logout(): void {
